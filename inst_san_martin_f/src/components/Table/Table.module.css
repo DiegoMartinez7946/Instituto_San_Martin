@@ -1,0 +1,28 @@
+.Table {
+  margin-top: 10px;
+  background-color: #0dcaf0;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+.HeaderCol {
+  background-color: #212529;
+  padding-bottom: 5px;
+  font-weight: bold;
+  color: white;
+}
+
+.BodyCol {
+  background-color: #0dcaf0;
+  margin: 5px 0;
+  color: white;
+}
+
+svg {
+  margin: 0 5px;
+}
+svg:hover {
+  cursor: pointer;
+}
+
+
