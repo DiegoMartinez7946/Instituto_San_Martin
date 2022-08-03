@@ -1,21 +1,25 @@
 import React from 'react';
-import { Modal, Button } from 'react-bootstrap';
+import { Modal } from 'react-bootstrap';
 
-const ModalRole = ({show, handleClose, data}) => {
+import FormRole from '../Form/FormRole';
+
+const ModalRole = ({show, handleClose, saveEvent, data}) => {
+
+  const eventHandler = (e) => {
+    saveEvent(e);
+  };
+
   return (
-    <Modal show={show} onHide={handleClose}>
+    <Modal show={show} onHide={handleClose} centered>
       <Modal.Header closeButton>
-        <Modal.Title>Modal heading</Modal.Title>
+        <Modal.Title>{ data ? 'Editar Rol' : 'Agregar Rol'}</Modal.Title>
       </Modal.Header>
-      <Modal.Body>Woohoo, you're reading this text in a modal!</Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={handleClose}>
-          Close
-        </Button>
-        <Button variant="primary" onClick={handleClose}>
-          Save Changes
-        </Button>
-      </Modal.Footer>
+      <Modal.Body>
+        <FormRole 
+          dataEntry={data}
+          saveData={(e) => eventHandler(e)}
+        />
+      </Modal.Body>
     </Modal>
   );
 };

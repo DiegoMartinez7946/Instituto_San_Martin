@@ -1,7 +1,6 @@
 package services
 
 import (
-	"log"
 	"regexp"
 	"strings"
 
@@ -9,32 +8,38 @@ import (
 	"github.com/benjacifre10/san_martin_b/models"
 )
 
+/***************************************************************/
+/***************************************************************/
 /* GetRolesService call the db to get the roles */
 func GetRolesService() ([]*models.Role, bool) {
 	// call the db
 	result, status := db.GetRolesDB()
 	if status == false {
-		log.Println("There was an error in services -> GetRolesService")
 		return result, status
 	}
 
 	return result, status
 }
 
-/* Invice call the db to insert the role */
-func InsertRoleService(r models.Role) (string, bool, error) {
+/***************************************************************/
+/***************************************************************/
+/* InsertRoleService call the db to insert the role */
+func InsertRoleService(r models.Role) (string, int, error) {
+	// check if the role is empty
+	if len(r.Type) == 0 {
+		return "No puede registrar el tipo de rol vacio", 199, nil
+	}
+
 	// verify if the type has any number
 	anyNumber, errRegexp := regexp.MatchString(`\d+`, r.Type)
 	if anyNumber == true {
-		log.Println("No puede registrar el tipo de rol con numeros")
-		return "", false, errRegexp
+		return "No puede registrar el tipo de rol con numeros", 199, errRegexp
 	}
 
 	// verify if the type has already exists
 	_, check, errorCheck := db.CheckExistRole(r.Type)
 	if check == true {
-		log.Println("Ya existe ese rol en el sistema")
-		return "", false, errorCheck
+		return "Ya existe ese rol en el sistema", 199, errorCheck
 	}
 
 	r.Type = strings.ToUpper(r.Type)
@@ -42,39 +47,67 @@ func InsertRoleService(r models.Role) (string, bool, error) {
 		Type: r.Type,
 	}
 
-	_, status, err := db.InsertRoleDB(row)
-	if status == false || err != nil {
-		log.Println("There was an error in services -> InsertRoleDB")
-		return "", false, err
+	msg, err := db.InsertRoleDB(row)
+	if err != nil {
+		return msg, 400, err
 	}
 
-	return "", status, err
+	return msg, 201, nil
 }
 
+/***************************************************************/
+/***************************************************************/
 /* UpdateRoleService update the user role */
-func UpdateRoleService(r models.Role) (bool, error) {
+func UpdateRoleService(r models.Role) (string, int, error) {
 	if len(r.Type) == 0 {
-		log.Println("El rol no puede venir vacio")
-		return false, nil
+		return "El rol no puede venir vacio", 199, nil
+	}
+
+	// verify if the type has any number
+	anyNumber, errRegexp := regexp.MatchString(`\d+`, r.Type)
+	if anyNumber == true {
+		return "No puede actualizar el tipo de rol con numeros", 199, errRegexp
+	}
+
+	// verify if the type has already exists
+	_, check, errorCheck := db.CheckExistRole(r.Type)
+	if check == true {
+		return "Ya existe ese rol en el sistema", 199, errorCheck
 	}
 
 	r.Type = strings.ToUpper(r.Type)
 
 	_, err := db.UpdateRoleDB(r)
 	if err != nil {
-		return false, err
+		return "Hubo un error al actualizar el rol en la base", 400, err
 	}
 
-	return true, nil
+	return "El rol se actualizo correctamente", 200, nil
 }
 
+/***************************************************************/
+/***************************************************************/
 /* DeleteRoleService delete the user role */
-func DeleteRoleService(IDRole string) error {
-	// aca despues tengo que agregar una verificacion si existe un usuario
-	// con un rol asociado, en caso de existir no me dejaria borrarlo
+func DeleteRoleService(IDRole string) (string, int, error) {
+	// find the role
+	role, errFind := db.GetRoleDB(IDRole)
+	if errFind != nil {
+		return "Hubo un error al intentar localizar el rol a borrar en la base", 400, errFind
+	}
+
+	// find if exists users with that role
+	users, code, errUser := db.GetUsersDB(role.Type)
+	if errUser != nil {
+		return "Hubo un error al buscar los usuarios asociados al rol", code, errUser
+	}
+	if len(users) > 0 {
+		return "No se puede borrar el rol, hay usuarios asociados al mismo", 199, nil
+	}
+
 	err := db.DeleteRoleDB(IDRole)
 	if err != nil {
-		log.Println("Hubo un error en db -> Role -> DeleteRoleDB")
+		return "Hubo un error al intentar borrar el rol en la base", 400, err
 	}
-	return err
+
+	return "El rol se borro correctamente", 200, nil
 }

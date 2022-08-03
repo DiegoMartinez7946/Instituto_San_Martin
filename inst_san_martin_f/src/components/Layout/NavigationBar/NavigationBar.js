@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faAngleDown, faAngleRight } from '@fortawesome/free-solid-svg-icons';
 import lodash from 'lodash';
 import decodeToken from '../../../utils/jwt';
 import { useGlobal } from "./../../../context/Global/GlobalProvider";
@@ -11,11 +13,13 @@ import ToggleButton from '../SideBar/ToggleButton';
 const NavigationBar = ({ toggleClick }) => {
 
   const [user, setUser] = useState('');
+  const [icon, setIcon] = useState(null);
  
   const [globalState] = useGlobal();
 
   useEffect(() => {
     setUser(decodeToken(document.cookie));
+    setIcon(<FontAwesomeIcon icon={faAngleDown} />);
   }, [globalState]);
 
   return (
@@ -54,6 +58,13 @@ const NavigationBar = ({ toggleClick }) => {
                   case "ALUMNO": return (
                     <ul>
                       <li>
+                        <NavLink
+                          className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                          to="/passwordchange">
+                          Cambiar Password
+                        </NavLink>
+                      </li>
+                      <li>
                         <NavLink 
                           className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
                           to="/logout">
@@ -74,6 +85,20 @@ const NavigationBar = ({ toggleClick }) => {
                       <li>
                         <NavLink
                           className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                          to="/degree">
+                          Carreras
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink
+                          className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                          to="/passwordchange">
+                          Cambiar Password
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink
+                          className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
                           to="/logout">
                           Logout
                         </NavLink>
@@ -85,16 +110,58 @@ const NavigationBar = ({ toggleClick }) => {
                       <li>
                         <NavLink
                           className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
-                          to="/roles">
-                          Roles
+                          to="/users">
+                          Administrativos
                         </NavLink>
                       </li>
                       <li>
                         <NavLink
                           className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
-                          to="/users">
-                          Administrativos
+                          to="/passwordblank">
+                          Blanqueo Password
                         </NavLink>
+                      </li>
+                      <li>
+                        <div 
+                          className={styles.toolbar__dropdown_container}
+                          onMouseEnter={() => setIcon(<FontAwesomeIcon icon={faAngleRight} />)}
+                          onMouseLeave={() => setIcon(<FontAwesomeIcon icon={faAngleDown} />)}
+                        >
+                          <span>Administrar {icon}</span>
+                          <ul>
+                            <li>
+                              <NavLink
+                                className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                                to="/roles">
+                                Roles
+                              </NavLink>
+                            </li>
+                            <hr />
+                            <li>
+                              <NavLink
+                                className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                                to="/shift">
+                                Turnos
+                              </NavLink>
+                            </li>
+                            <hr />
+                            <li>
+                              <NavLink
+                                className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                                to="/testtype">
+                                Tipo Examen
+                              </NavLink>
+                            </li>
+                            <hr />
+                            <li>
+                              <NavLink
+                                className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                                to="/pursuetype">
+                                Modalidad
+                              </NavLink>
+                            </li>
+                          </ul>
+                        </div>
                       </li>
                       <li>
                         <NavLink

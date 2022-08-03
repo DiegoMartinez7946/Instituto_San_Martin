@@ -2,7 +2,6 @@
 package services
 
 import (
-	"log"
 	"time"
 
 	"github.com/benjacifre10/san_martin_b/db"
@@ -10,19 +9,20 @@ import (
 	"github.com/benjacifre10/san_martin_b/utils"
 )
 
+/***************************************************************/
+/***************************************************************/
 /* InsertUserService check the user income andthen insert in the db */
-func InsertUserService(u models.User) (string, bool, error) {
-	log.Println("services")
+func InsertUserService(u models.User) (string, int, error) {
 	// 1 verify existing
 	user, status, err := db.CheckExistUser(u.Email)
 	if user.Email != "" {
-		return "Ya existe un usuario registrado con ese email!! ", status, err
+		return "Ya existe un usuario registrado con ese email!! ", 400, err
 	}
 	// 2 check password large, correct email
 	var idUserType string
 	idUserType, status, err = db.CheckExistRole(u.UserType)
 	if idUserType == "" {
-		return "El tipo de usuario no existe!! ", status, err
+		return "El tipo de usuario no existe!! ", 400, err
 	}
 
 	u.Password, _ = utils.EncryptPassword(u.Password)
@@ -34,15 +34,16 @@ func InsertUserService(u models.User) (string, bool, error) {
 		UpdatedAt: time.Now(),
 	}
 
-	_, status, err = db.InsertUserDB(row)
+	msg, err := db.InsertUserDB(row)
 	if status == false || err != nil {
-		log.Println("There was an error in services -> InsertUserDB")
-		return "", status, err
+		return msg, 400, err
 	}
 
-	return "", status, err
+	return msg, 201, err
 }
 
+/***************************************************************/
+/***************************************************************/
 /* LoginService check the user and create the token */
 func LoginService(u models.User) (models.LoginResponse, bool, error) {
 	var resp models.LoginResponse
@@ -75,8 +76,10 @@ func LoginService(u models.User) (models.LoginResponse, bool, error) {
 	return resp, true, nil
 }
 
+/***************************************************************/
+/***************************************************************/
 /* GetUsersService call the db to get the users */
-func GetUsersService() ([]models.UserResponse, bool) {
+func GetUsersService() ([]models.UserResponse, bool, error) {
 	// define roleType
 	roleType := "ADMINISTRATIVO"
 	if GUserType == "ADMINISTRATIVO" {
@@ -86,15 +89,16 @@ func GetUsersService() ([]models.UserResponse, bool) {
 		roleType = ""
 	}
 	// call the db
-	result, status, error := db.GetUsersDB(roleType)
-	if status == false {
-		log.Println("There was an error in services -> GetUsersService " + error.Error())
-		return result, status
+	result, code, err := db.GetUsersDB(roleType)
+	if code == 400 {
+		return result, false, err
 	}
 
-	return result, status
+	return result, true, nil
 }
 
+/***************************************************************/
+/***************************************************************/
 /* ChangePasswordService check the current password an update with the new one */
 func ChangePasswordService(cp models.OldNewPassword) (models.Response, bool, error) {
 	// find the user
@@ -139,7 +143,38 @@ func ChangePasswordService(cp models.OldNewPassword) (models.Response, bool, err
 		Message: "Password actualizada",
 		Code: 200,
 		Ok: true,
-		Data: cp,
 	}
 	return resp, true, nil
+}
+
+/***************************************************************/
+/***************************************************************/
+func BlankPasswordServices(cp models.OldNewPassword) (string, int, error) {
+	if len(cp.Email) == 0 {
+		return "El email no puede venir vacio", 199, nil
+	}
+
+	if len(cp.NewPassword) < 6 {
+		return "El password no puede tener menos de 6 caracteres", 199, nil
+	}
+
+	// find the user
+	_, status, err := db.CheckExistUser(cp.Email)
+	if status == false {
+		return "El usuario no esta registrado", 404, err 
+	}
+
+	cp.NewPassword, _ = utils.EncryptPassword(cp.NewPassword)
+	row := models.User {
+		Email: cp.Email,
+		Password: cp.NewPassword,
+		UpdatedAt: time.Now(),
+	}
+
+	status, err = db.ChangePasswordDB(row);
+	if err != nil {
+		return "Error al actualizar la password", 404, err
+	}
+
+	return "Password actualizada", 200, err
 }

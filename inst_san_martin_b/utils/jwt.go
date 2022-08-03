@@ -14,7 +14,7 @@ func GenerateJWT(u models.UserResponse) (string, error) {
 	payload := jwt.MapClaims {
 		"email": u.Email,
 		"_id": u.ID.Hex(),
-		"type": u.Role.Type,
+		"type": u.Role,
 		"exp": time.Now().Add(time.Hour * 24).Unix(),// unix me lo transforma en un formato long
 	}
 

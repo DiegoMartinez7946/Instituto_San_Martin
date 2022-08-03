@@ -1,19 +1,22 @@
 .Table {
   margin-top: 10px;
-  background-color: #0dcaf0;
-  border-top-left-radius: 5px;
-  border-top-right-radius: 5px;
+  background-color: #17a2b8;
+  border-top-left-radius: 25px;
+  border-top-right-radius: 25px;
 }
 
 .HeaderCol {
-  background-color: #212529;
+  background-color: #17a2b8;
+  text-align: center;
+  border-bottom: 2px solid white;
   padding-bottom: 5px;
   font-weight: bold;
   color: white;
 }
 
 .BodyCol {
-  background-color: #0dcaf0;
+  background-color: #17a2b8;
+  text-align: center;
   margin: 5px 0;
   color: white;
 }
@@ -25,4 +28,6 @@ svg:hover {
   cursor: pointer;
 }
 
-
+.hiddenDiv {
+  display: none;
+}

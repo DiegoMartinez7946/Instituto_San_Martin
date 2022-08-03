@@ -1,7 +1,11 @@
 import React, { useContext, useReducer } from 'react';
 import { GlobalContext } from './GlobalContext';
 import  combineReducers from './reducers';
-import  RoleReducer from './reducers/RoleReducer.js';
+import  DegreeReducer from './reducers/DegreeReducer';
+import  PursueTypeReducer from './reducers/PursueTypeReducer';
+import  RoleReducer from './reducers/RoleReducer';
+import  ShiftReducer from './reducers/ShiftReducer';
+import  TestTypeReducer from './reducers/TestTypeReducer';
 import  UserReducer  from './reducers/UserReducer';
 import { GlobalState } from './GlobalState';
 
@@ -13,8 +17,12 @@ export const useGlobal = () => {
 export const GlobalProvider = ({ children }) => {
 
   const GlobalReducer = combineReducers({
+    degrees: DegreeReducer,
+    pursuetypes: PursueTypeReducer,
     roles: RoleReducer,
-    users: UserReducer
+    shifts: ShiftReducer,
+    testtypes: TestTypeReducer,
+    users: UserReducer,
   });
 
   const [state, dispatch] = useReducer(GlobalReducer, GlobalState);

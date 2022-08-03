@@ -27,9 +27,7 @@ type LoginResponse struct {
 type UserResponse struct {
 	ID primitive.ObjectID `bson:"_id,omitempty" json:""`
 	Email string `bson:"email" json:"email"`
-	Role struct {
-		Type string `bson:"type" json:"type,omitempty"`
-	}
+	Role string `bson:"role" json:"role,omitempty"`
 }
 
 /* Claim is the struct to process the jwt */

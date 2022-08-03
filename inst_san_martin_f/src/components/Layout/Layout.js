@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 
 import styles from './Layout.module.css';
-
 import NavigationBar from './NavigationBar/NavigationBar';
 import SideBar from './SideBar/SideBar';
 import Backdrop from './Backdrop/Backdrop';

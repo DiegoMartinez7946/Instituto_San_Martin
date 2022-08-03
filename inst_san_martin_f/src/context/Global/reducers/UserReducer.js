@@ -26,6 +26,27 @@ export default (state, action) => {
         userLogin: {},
       };
 
+    case 'GETUSERSBYROLE':
+      return {
+        ...state,
+        users: action.payload
+      };
+
+    case 'BLANK_PASSWORD':
+      return state;
+
+    case 'CHANGE_PASSWORD':
+      return state;
+
+    case 'ADD_USER':
+      const user = action.payload;
+      const newUsers = state.users;
+      newUsers.push(user);
+      return {
+        ...state,
+        users: newUsers
+      };
+
     default:
       return state;
   }

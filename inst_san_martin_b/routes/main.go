@@ -13,6 +13,11 @@ func HandlerRoutes() (*mux.Router) {
 	router.HandleFunc("/health", controllers.Health).Methods("GET")
 	router = UserRoutes(router)
 	router = RoleRoutes(router)
+	router = ShiftRoutes(router)
+	router = PursueTypeRoutes(router)
+	router = TestTypeRoutes(router)
+	router = DegreeRoutes(router)
+	router = StudyPlanRoutes(router)
 
 	return router
 }

@@ -14,6 +14,7 @@ func UserRoutes(router *mux.Router) (*mux.Router) {
 	router.HandleFunc("/login", middlewares.DbCheck(controllers.Login)).Methods("POST")
 	router.HandleFunc("/user", middlewares.DbCheck(middlewares.ValidatedJWT(controllers.GetUsers))).Methods("GET")
 	router.HandleFunc("/user/password", middlewares.DbCheck(middlewares.ValidatedJWT(controllers.ChangePassword))).Methods("PUT")
+	router.HandleFunc("/user/password/blank", middlewares.DbCheck(middlewares.ValidatedJWT(controllers.BlankPassword))).Methods("PUT")
 
 	return router
 }

@@ -1,12 +1,13 @@
 import React from 'react';
 import { Col } from 'react-bootstrap';
+import { transformTitles } from '../../utils/transformTitles';
 
 import styles from './Table.module.css';
 
-const HeaderCol = ({data}) => {
+const HeaderCol = ({colNumber, data}) => {
   return (
-    <Col>
-      <div className={styles.HeaderCol}>{data}</div>
+    <Col className={colNumber > 0 ? '' : styles.hiddenDiv}>
+      <div className={styles.HeaderCol}>{transformTitles(data)}</div>
     </Col>
   ); 
 }
