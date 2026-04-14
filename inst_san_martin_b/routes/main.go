@@ -18,6 +18,7 @@ func HandlerRoutes() (*mux.Router) {
 	router = TestTypeRoutes(router)
 	router = DegreeRoutes(router)
 	router = StudyPlanRoutes(router)
+	router = StudentRoutes(router)
 
 	return router
 }

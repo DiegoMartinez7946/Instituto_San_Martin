@@ -2,15 +2,16 @@ export default (state, action) => {
   switch(action.type) {
     case 'ADD_DEGREE':
       const degree = action.payload;
-      const newDegrees = state.degrees;
-      newDegrees.push(degree);
+      const prevDegrees = Array.isArray(state.degrees) ? state.degrees : [];
       return {
         ...state,
-        degress: newDegrees
+        degrees: [...prevDegrees, degree]
       };
     case 'UPDATE_DEGREE':
-      const updatedDegrees = state.degrees.map(d => {
-        if (d.ID === action.payload.ID) {
+      const updatedDegrees = (state.degrees || []).map(d => {
+        const did = d.id || d.ID;
+        const pid = action.payload.id || action.payload.ID;
+        if (did === pid) {
           d.name = action.payload.name;
         }
         return d;
@@ -20,8 +21,10 @@ export default (state, action) => {
         degrees: updatedDegrees 
       };
     case 'CHANGE_ACTIVE_DEGREE':
-      const changedDegrees = state.degrees.map(d => {
-        if (d.ID === action.payload.ID) {
+      const changedDegrees = (state.degrees || []).map(d => {
+        const did = d.id || d.ID;
+        const pid = action.payload.id || action.payload.ID;
+        if (did === pid) {
           d.active = action.payload.active;
         }
         return d;
@@ -33,7 +36,7 @@ export default (state, action) => {
     case 'GET_DEGREE':
       return {
         ...state,
-        degrees: action.payload
+        degrees: Array.isArray(action.payload) ? action.payload : []
       };
     default:
       return state;

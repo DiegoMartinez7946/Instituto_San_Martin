@@ -157,3 +157,30 @@ func UpdateStatusDegreeDB(d models.Degree) (bool, error) {
 
 	return true, nil
 }
+
+/***************************************************************/
+/***************************************************************/
+/* ExistsDegreeByID returns true if a degree exists and is active */
+func ExistsDegreeByID(id primitive.ObjectID) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
+	defer cancel()
+
+	db := config.MongoConnection.Database("san_martin")
+	collection := db.Collection("degree")
+
+	var d models.Degree
+	err := collection.FindOne(ctx, bson.M{"_id": id, "active": true}).Decode(&d)
+	return err == nil && !d.ID.IsZero()
+}
+
+/* DegreeDocumentExists returns true if a degree document exists (any status) */
+func DegreeDocumentExists(id primitive.ObjectID) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
+	defer cancel()
+
+	db := config.MongoConnection.Database("san_martin")
+	collection := db.Collection("degree")
+
+	n, err := collection.CountDocuments(ctx, bson.M{"_id": id})
+	return err == nil && n > 0
+}

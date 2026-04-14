@@ -1,0 +1,149 @@
+// Package controllers provides ...
+package controllers
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/benjacifre10/san_martin_b/models"
+	"github.com/benjacifre10/san_martin_b/services"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
+
+/* studentPayload decodes JSON degree ids as hex strings */
+type studentPayload struct {
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Email     string   `json:"email"`
+	Phone     string   `json:"phone"`
+	DNI       string   `json:"dni"`
+	Address   string   `json:"address"`
+	DegreeIDs []string `json:"degreeIds"`
+}
+
+func parseStudentPayload(p studentPayload) (models.Student, error) {
+	var s models.Student
+	s.Name = p.Name
+	s.Email = p.Email
+	s.Phone = p.Phone
+	s.DNI = p.DNI
+	s.Address = p.Address
+
+	if p.ID != "" {
+		oid, err := primitive.ObjectIDFromHex(p.ID)
+		if err != nil {
+			return s, err
+		}
+		s.ID = oid
+	}
+
+	for _, hex := range p.DegreeIDs {
+		oid, err := primitive.ObjectIDFromHex(hex)
+		if err != nil {
+			return s, err
+		}
+		s.DegreeIDs = append(s.DegreeIDs, oid)
+	}
+	return s, nil
+}
+
+/* GetStudents */
+func GetStudents(w http.ResponseWriter, r *http.Request) {
+	result, status := services.GetStudentsService()
+	if !status {
+		res := models.Response{
+			Message: "Error al consultar los alumnos",
+			Code:    400,
+		}
+		json.NewEncoder(w).Encode(res)
+		return
+	}
+
+	res := models.Response{
+		Data: result,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(res)
+}
+
+/* InsertStudent */
+func InsertStudent(w http.ResponseWriter, r *http.Request) {
+	var p studentPayload
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		res := models.Response{
+			Message: "Parametros invalidos",
+			Code:    400,
+		}
+		json.NewEncoder(w).Encode(res)
+		return
+	}
+
+	s, err := parseStudentPayload(p)
+	if err != nil {
+		res := models.Response{
+			Message: "Ids invalidos",
+			Code:    400,
+		}
+		json.NewEncoder(w).Encode(res)
+		return
+	}
+
+	msg, code, err := services.InsertStudentService(s)
+	if err != nil || code != 201 {
+		res := models.Response{
+			Message: "Error al insertar el alumno. " + msg,
+			Code:    code,
+		}
+		json.NewEncoder(w).Encode(res)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	res := models.Response{
+		Message: "Se ha insertado el alumno correctamente",
+		Code:    code,
+		Data:    msg,
+	}
+	json.NewEncoder(w).Encode(res)
+}
+
+/* UpdateStudent */
+func UpdateStudent(w http.ResponseWriter, r *http.Request) {
+	var p studentPayload
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		res := models.Response{
+			Message: "Parametros invalidos",
+			Code:    400,
+		}
+		json.NewEncoder(w).Encode(res)
+		return
+	}
+
+	s, err := parseStudentPayload(p)
+	if err != nil || s.ID.IsZero() {
+		res := models.Response{
+			Message: "Id de alumno invalido",
+			Code:    400,
+		}
+		json.NewEncoder(w).Encode(res)
+		return
+	}
+
+	msg, code, err := services.UpdateStudentService(s)
+	if err != nil || code != 200 {
+		res := models.Response{
+			Message: "Error al actualizar el alumno. " + msg,
+			Code:    code,
+		}
+		json.NewEncoder(w).Encode(res)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	res := models.Response{
+		Message: msg,
+		Code:    code,
+	}
+	json.NewEncoder(w).Encode(res)
+}

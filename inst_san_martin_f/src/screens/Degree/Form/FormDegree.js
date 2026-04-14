@@ -4,16 +4,16 @@ import { Form, Button } from 'react-bootstrap';
 const FormDegree = ({ dataEntry, saveData }) => {
 
   const [data, setData] = useState({
-    ID: '',
+    id: '',
     name: ''
   });
 
   useEffect(() => {
       setData({
-        ID: dataEntry.ID || '',
+        id: dataEntry.id || dataEntry.ID || '',
         name: dataEntry.name || ''
       }); 
-  }, []);
+  }, [dataEntry]);
 
   const handleInputChange = (event) => {
     setData({
@@ -30,7 +30,7 @@ const FormDegree = ({ dataEntry, saveData }) => {
   return (
     <Form onSubmit={sendData}>
       <Form.Group className="mb-3" controlId="formBasicID">
-        <Form.Control type="hidden" disabled name="ID" value={data ? data.ID : ''}/>
+        <Form.Control type="hidden" disabled name="id" value={data ? data.id : ''}/>
       </Form.Group>
 
       <Form.Group className="mb-3" controlId="formBasicName">
@@ -39,7 +39,7 @@ const FormDegree = ({ dataEntry, saveData }) => {
       </Form.Group>
       <br />
       <Button variant="primary" type="submit" className="w-100">
-        { dataEntry ? 'Actualizar' : 'Guardar' }
+        { (dataEntry && (dataEntry.id || dataEntry.ID)) ? 'Actualizar' : 'Guardar' }
       </Button>
     </Form>
   )

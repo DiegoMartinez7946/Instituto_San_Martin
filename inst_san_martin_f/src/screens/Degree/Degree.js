@@ -61,7 +61,7 @@ const Degree = () => {
   }, [globalState]);
 
   const saveEventHandler = async (e) => {
-    const result = e.ID === '' ?
+    const result = !(e.id || e.ID) ?
       await addDegree(globalDispatch, e) :
       await updateDegree(globalDispatch, e);
    
