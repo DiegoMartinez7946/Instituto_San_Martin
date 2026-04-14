@@ -12,7 +12,7 @@ const ModalDegree = ({show, handleClose, saveEvent, data}) => {
   return (
     <Modal show={show} onHide={handleClose} centered>
       <Modal.Header closeButton>
-        <Modal.Title>{ data ? 'Editar Carrera' : 'Agregar Carrera'}</Modal.Title>
+        <Modal.Title>{ (data && (data.id || data.ID)) ? 'Editar Carrera' : 'Agregar Carrera'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <FormDegree 
