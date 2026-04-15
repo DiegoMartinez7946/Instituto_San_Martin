@@ -10,6 +10,7 @@ import { getDegree } from '../../context/Global/actions/DegreeActions';
 import { getStudents, addStudent, updateStudent } from '../../context/Global/actions/StudentActions';
 
 import styles from './Students.module.css';
+import { etiquetaNivel } from '../../constant/nivelesAcademicos';
 
 const degreeNameById = (degrees, hexId) => {
   const d = (degrees || []).find(x => (x.id || x.ID) === hexId);
@@ -24,6 +25,7 @@ const buildTableRows = (students, degrees) =>
     telefono: s.phone || '',
     dni: s.dni,
     direccion: s.address || '',
+    nivelAprobado: s.nivelAprobado ? etiquetaNivel(s.nivelAprobado) : '—',
     carreras: (s.degreeIds || []).map(did => degreeNameById(degrees, did)).join(', ')
   }));
 

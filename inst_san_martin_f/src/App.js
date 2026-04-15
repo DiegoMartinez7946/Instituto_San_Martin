@@ -8,6 +8,7 @@ import Login from './screens/Login/Login';
 import Main from './screens/Main/Main';
 import Degree from './screens/Degree/Degree';
 import Students from './screens/Students/Students';
+import Teachers from './screens/Teachers/Teachers';
 import Roles from './screens/Roles/Roles';
 import Shift from './screens/Shift/Shift';
 import TestType from './screens/TestType/TestType';
@@ -35,6 +36,7 @@ const App = () => {
       <Route exact path="/passwordblank" element={<Protected><PasswordBlank/></Protected>} />
       <Route exact path="/passwordchange" element={<Protected><PasswordChange/></Protected>} />
       <Route exact path="/students" element={<Protected><Students/></Protected>} />
+      <Route exact path="/teachers" element={<Protected><Teachers/></Protected>} />
       <Route exact path="/degree" element={<Protected><Degree/></Protected>} />
     </Routes>
   );

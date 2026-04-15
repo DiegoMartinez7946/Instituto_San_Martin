@@ -20,6 +20,7 @@ const buildStudentBody = (item) => {
     phone: item.phone !== undefined && item.phone !== null ? String(item.phone) : '',
     dni: item.dni != null ? String(item.dni) : '',
     address: item.address !== undefined && item.address !== null ? String(item.address) : '',
+    nivelAprobado: item.nivelAprobado != null ? String(item.nivelAprobado).trim() : '',
     degreeIds: Array.isArray(item.degreeIds) ? item.degreeIds : []
   };
 };
@@ -48,6 +49,7 @@ export const getStudents = async (dispatch) => {
     phone: s.phone || '',
     dni: s.dni,
     address: s.address || '',
+    nivelAprobado: s.nivelAprobado || '',
     degreeIds: s.degreeIds || []
   }));
   dispatch({

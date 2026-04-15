@@ -14,25 +14,38 @@ func GetStudentsService() ([]*models.Student, bool) {
 	return db.GetStudentsDB()
 }
 
-func validateDegreeIDs(ids []primitive.ObjectID) (string, bool) {
-	if len(ids) == 0 {
+func validateStudentDegreesEnrollment(s models.Student) (string, bool) {
+	if len(s.DegreeIDs) == 0 {
 		return "Debe seleccionar al menos una carrera", false
 	}
-	for _, id := range ids {
+
+	nivelAlumno := strings.ToLower(strings.TrimSpace(s.NivelAprobado))
+	if nivelAlumno == "" {
+		return "Debe indicar el nivel aprobado del alumno", false
+	}
+
+	jmap := db.GetJerarquiaMap()
+	ha, ok := jmap[nivelAlumno]
+	if !ok {
+		return "Nivel aprobado no valido", false
+	}
+
+	for _, id := range s.DegreeIDs {
 		if id.IsZero() || !db.DegreeDocumentExists(id) {
 			return "Una o mas carreras no existen", false
 		}
-	}
-	return "", true
-}
-
-func validateEmail(email string) (string, bool) {
-	e := strings.TrimSpace(email)
-	if e == "" {
-		return "", true
-	}
-	if !strings.Contains(e, "@") || len(e) < 5 {
-		return "El correo electronico no es valido", false
+		deg, okDeg := db.GetDegreeByID(id)
+		if !okDeg {
+			return "Una o mas carreras no existen", false
+		}
+		niv := strings.ToLower(strings.TrimSpace(deg.Nivel))
+		hn, okN := jmap[niv]
+		if !okN || niv == "" {
+			return "La carrera \"" + deg.Name + "\" no tiene un nivel valido configurado", false
+		}
+		if ha < hn-1 {
+			return "El nivel aprobado del alumno no permite inscribirlo en la carrera \"" + deg.Name + "\"", false
+		}
 	}
 	return "", true
 }
@@ -42,14 +55,24 @@ func InsertStudentService(s models.Student) (string, int, error) {
 	if len(s.Name) == 0 || len(s.DNI) == 0 {
 		return "Nombre y DNI son obligatorios", 199, nil
 	}
-	if msg, ok := validateEmail(s.Email); !ok {
+	if msg, ok := ValidateDNIAr(s.DNI); !ok {
+		return msg, 199, nil
+	}
+	s.DNI = strings.TrimSpace(s.DNI)
+	s.Email = strings.TrimSpace(s.Email)
+	if msg, ok := ValidateCorreoElectronico(s.Email); !ok {
+		return msg, 199, nil
+	}
+	s.Phone = NormalizeTelefonoDigits(s.Phone)
+	if msg, ok := ValidateTelefono(s.Phone); !ok {
 		return msg, 199, nil
 	}
 	_, exists := db.FindStudentByDNIDB(s.DNI, primitive.ObjectID{})
 	if exists {
 		return "Ya existe un alumno con ese DNI", 199, nil
 	}
-	msg, ok := validateDegreeIDs(s.DegreeIDs)
+	s.NivelAprobado = strings.ToLower(strings.TrimSpace(s.NivelAprobado))
+	msg, ok := validateStudentDegreesEnrollment(s)
 	if !ok {
 		return msg, 199, nil
 	}
@@ -73,14 +96,24 @@ func UpdateStudentService(s models.Student) (string, int, error) {
 	if len(s.Name) == 0 || len(s.DNI) == 0 {
 		return "Nombre y DNI son obligatorios", 199, nil
 	}
-	if msg, ok := validateEmail(s.Email); !ok {
+	if msg, ok := ValidateDNIAr(s.DNI); !ok {
+		return msg, 199, nil
+	}
+	s.DNI = strings.TrimSpace(s.DNI)
+	s.Email = strings.TrimSpace(s.Email)
+	if msg, ok := ValidateCorreoElectronico(s.Email); !ok {
+		return msg, 199, nil
+	}
+	s.Phone = NormalizeTelefonoDigits(s.Phone)
+	if msg, ok := ValidateTelefono(s.Phone); !ok {
 		return msg, 199, nil
 	}
 	_, exists := db.FindStudentByDNIDB(s.DNI, s.ID)
 	if exists {
 		return "Ya existe otro alumno con ese DNI", 199, nil
 	}
-	msg, ok := validateDegreeIDs(s.DegreeIDs)
+	s.NivelAprobado = strings.ToLower(strings.TrimSpace(s.NivelAprobado))
+	msg, ok := validateStudentDegreesEnrollment(s)
 	if !ok {
 		return msg, 199, nil
 	}

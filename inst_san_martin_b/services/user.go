@@ -2,6 +2,7 @@
 package services
 
 import (
+	"strings"
 	"time"
 
 	"github.com/benjacifre10/san_martin_b/db"
@@ -13,6 +14,10 @@ import (
 /***************************************************************/
 /* InsertUserService check the user income andthen insert in the db */
 func InsertUserService(u models.User) (string, int, error) {
+	u.Email = strings.TrimSpace(u.Email)
+	if msg, ok := ValidateCorreoElectronicoRequired(u.Email); !ok {
+		return msg, 199, nil
+	}
 	// 1 verify existing
 	user, status, err := db.CheckExistUser(u.Email)
 	if user.Email != "" {
@@ -101,6 +106,15 @@ func GetUsersService() ([]models.UserResponse, bool, error) {
 /***************************************************************/
 /* ChangePasswordService check the current password an update with the new one */
 func ChangePasswordService(cp models.OldNewPassword) (models.Response, bool, error) {
+	cp.Email = strings.TrimSpace(cp.Email)
+	if msg, ok := ValidateCorreoElectronicoRequired(cp.Email); !ok {
+		resp := models.Response{
+			Message: msg,
+			Code:    400,
+			Ok:      false,
+		}
+		return resp, false, nil
+	}
 	// find the user
 	user, status, err := db.CheckExistUser(cp.Email)
 	if status == false {
@@ -150,8 +164,12 @@ func ChangePasswordService(cp models.OldNewPassword) (models.Response, bool, err
 /***************************************************************/
 /***************************************************************/
 func BlankPasswordServices(cp models.OldNewPassword) (string, int, error) {
+	cp.Email = strings.TrimSpace(cp.Email)
 	if len(cp.Email) == 0 {
 		return "El email no puede venir vacio", 199, nil
+	}
+	if msg, ok := ValidateCorreoElectronicoRequired(cp.Email); !ok {
+		return msg, 199, nil
 	}
 
 	if len(cp.NewPassword) < 6 {

@@ -1,6 +1,7 @@
 export const GlobalState = {
   degrees: [],
   students: [],
+  teachers: [],
   roles: [],
   pursuetypes: [],
   shifts: [],

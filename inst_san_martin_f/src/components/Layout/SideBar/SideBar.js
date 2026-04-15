@@ -61,6 +61,13 @@ const SideBar = ({ show, click }) => {
               <li>
                 <NavLink
                   className={styles.side_bar__link}
+                  to="/teachers">
+                  Docentes
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  className={styles.side_bar__link}
                   to="/passwordchange">
                   Cambiar Password
                 </NavLink>

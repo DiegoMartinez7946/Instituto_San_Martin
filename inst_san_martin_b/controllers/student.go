@@ -12,13 +12,14 @@ import (
 
 /* studentPayload decodes JSON degree ids as hex strings */
 type studentPayload struct {
-	ID        string   `json:"id"`
-	Name      string   `json:"name"`
-	Email     string   `json:"email"`
-	Phone     string   `json:"phone"`
-	DNI       string   `json:"dni"`
-	Address   string   `json:"address"`
-	DegreeIDs []string `json:"degreeIds"`
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Email         string   `json:"email"`
+	Phone         string   `json:"phone"`
+	DNI           string   `json:"dni"`
+	Address       string   `json:"address"`
+	NivelAprobado string   `json:"nivelAprobado"`
+	DegreeIDs     []string `json:"degreeIds"`
 }
 
 func parseStudentPayload(p studentPayload) (models.Student, error) {
@@ -28,6 +29,7 @@ func parseStudentPayload(p studentPayload) (models.Student, error) {
 	s.Phone = p.Phone
 	s.DNI = p.DNI
 	s.Address = p.Address
+	s.NivelAprobado = p.NivelAprobado
 
 	if p.ID != "" {
 		oid, err := primitive.ObjectIDFromHex(p.ID)

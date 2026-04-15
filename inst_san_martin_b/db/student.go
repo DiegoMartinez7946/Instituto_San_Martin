@@ -49,14 +49,15 @@ func InsertStudentDB(s models.Student) (string, error) {
 	collection := db.Collection("student")
 
 	row := bson.M{
-		"name":      s.Name,
-		"email":     s.Email,
-		"phone":     s.Phone,
-		"dni":       s.DNI,
-		"address":   s.Address,
-		"degreeids": s.DegreeIDs,
-		"createdat": s.CreatedAt,
-		"updatedat": s.UpdatedAt,
+		"name":          s.Name,
+		"email":         s.Email,
+		"phone":         s.Phone,
+		"dni":           s.DNI,
+		"address":       s.Address,
+		"nivelaprobado": s.NivelAprobado,
+		"degreeids":     s.DegreeIDs,
+		"createdat":     s.CreatedAt,
+		"updatedat":     s.UpdatedAt,
 	}
 
 	result, err := collection.InsertOne(ctx, row)
@@ -79,13 +80,14 @@ func UpdateStudentDB(s models.Student) (bool, error) {
 	filter := bson.M{"_id": s.ID}
 	update := bson.M{
 		"$set": bson.M{
-			"name":      s.Name,
-			"email":     s.Email,
-			"phone":     s.Phone,
-			"dni":       s.DNI,
-			"address":   s.Address,
-			"degreeids": s.DegreeIDs,
-			"updatedat": s.UpdatedAt,
+			"name":          s.Name,
+			"email":         s.Email,
+			"phone":         s.Phone,
+			"dni":           s.DNI,
+			"address":       s.Address,
+			"nivelaprobado": s.NivelAprobado,
+			"degreeids":     s.DegreeIDs,
+			"updatedat":     s.UpdatedAt,
 		},
 	}
 

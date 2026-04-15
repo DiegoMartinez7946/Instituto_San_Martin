@@ -4,6 +4,7 @@ package controllers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/benjacifre10/san_martin_b/models"
@@ -86,6 +87,16 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	u.Email = strings.TrimSpace(u.Email)
+	if msg, ok := services.ValidateCorreoElectronicoRequired(u.Email); !ok {
+		m := models.Response{
+			Message: msg,
+			Code:    400,
+			Ok:      false,
+		}
+		json.NewEncoder(w).Encode(m)
+		return
+	}
 
 	res, exists, err := services.LoginService(u)
 	if exists == false || err!= nil {

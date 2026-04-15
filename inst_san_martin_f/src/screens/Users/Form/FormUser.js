@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Button } from 'react-bootstrap';
 
+import { validateCorreoElectronicoRequerido } from '../../../utils/contact';
+
 const FormUser = ({ saveData }) => {
 
+  const [emailError, setEmailError] = useState('');
   const [data, setData] = useState({
     email: '',
     userType: 'ADMINISTRATIVO',
@@ -18,6 +21,9 @@ const FormUser = ({ saveData }) => {
   }, []);
 
   const handleInputChange = (event) => {
+    if (event.target.name === 'email') {
+      setEmailError('');
+    }
     setData({
       ...data,          
       [event.target.name] : event.target.value
@@ -26,7 +32,13 @@ const FormUser = ({ saveData }) => {
 
   const sendData = (e) => {
     e.preventDefault();
-    saveData(data); 
+    const emailCheck = validateCorreoElectronicoRequerido(data.email);
+    if (!emailCheck.ok) {
+      setEmailError(emailCheck.message);
+      return;
+    }
+    setEmailError('');
+    saveData({ ...data, email: String(data.email).trim() }); 
     setData({
       email: '',
       userType: 'ADMINISTRATIVO',
@@ -45,7 +57,9 @@ const FormUser = ({ saveData }) => {
           value={data ? data.email : ''} 
           autoFocus
           onChange={handleInputChange}
+          isInvalid={!!emailError}
         />
+        <Form.Control.Feedback type="invalid">{emailError}</Form.Control.Feedback>
       </Form.Group>
 
       <Form.Group className="mb-3" controlId="formBasicPassword">

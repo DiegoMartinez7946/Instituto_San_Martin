@@ -92,6 +92,13 @@ const NavigationBar = ({ toggleClick }) => {
                       <li>
                         <NavLink
                           className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                          to="/teachers">
+                          Docentes
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink
+                          className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
                           to="/passwordchange">
                           Cambiar Password
                         </NavLink>

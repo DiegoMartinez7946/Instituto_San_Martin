@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Button } from 'react-bootstrap';
 
+import { NIVELES_ORDENADOS, jerarquiaDeNivel, etiquetaNivel } from '../../../constant/nivelesAcademicos';
+import { validateDNI } from '../../../utils/dni';
+import {
+  validateCorreoElectronicoOpcional,
+  validateTelefonoOpcional,
+  sanitizeTelefonoInput
+} from '../../../utils/contact';
+
 const degId = (d) => (d && (d.id || d.ID)) || '';
 
 const FormStudent = ({ dataEntry, degrees, saveData }) => {
 
+  const [dniError, setDniError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [data, setData] = useState({
     id: '',
     name: '',
@@ -12,6 +23,7 @@ const FormStudent = ({ dataEntry, degrees, saveData }) => {
     phone: '',
     dni: '',
     address: '',
+    nivelAprobado: '',
     degreeIds: []
   });
 
@@ -21,19 +33,43 @@ const FormStudent = ({ dataEntry, degrees, saveData }) => {
       id: (entry && entry.id) || '',
       name: (entry && entry.name) || '',
       email: (entry && entry.email) || '',
-      phone: (entry && entry.phone) || '',
+      phone: sanitizeTelefonoInput((entry && entry.phone) || ''),
       dni: (entry && entry.dni) || '',
       address: (entry && entry.address) || '',
+      nivelAprobado: (entry && entry.nivelAprobado) ? String(entry.nivelAprobado).toLowerCase() : '',
       degreeIds: entry && Array.isArray(entry.degreeIds) ? [...entry.degreeIds] : []
     });
   }, [dataEntry]);
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
-    setData((prev) => ({
-      ...prev,
-      [name]: value
-    }));
+    if (name === 'dni') {
+      setDniError('');
+    }
+    if (name === 'email') {
+      setEmailError('');
+    }
+    setData((prev) => {
+      const next = { ...prev, [name]: value };
+      if (name === 'nivelAprobado' && (degrees || []).length) {
+        const ha = jerarquiaDeNivel(value);
+        const kept = (prev.degreeIds || []).filter((hexId) => {
+          const d = (degrees || []).find((x) => degId(x) === hexId);
+          if (!d) return false;
+          const hn = jerarquiaDeNivel((d.nivel || '').toLowerCase().trim());
+          if (ha == null || hn == null) return false;
+          return ha >= hn - 1;
+        });
+        next.degreeIds = kept;
+      }
+      return next;
+    });
+  };
+
+  const handlePhoneChange = (event) => {
+    setPhoneError('');
+    const digits = sanitizeTelefonoInput(event.target.value);
+    setData((prev) => ({ ...prev, phone: digits }));
   };
 
   const toggleDegree = (hexId) => {
@@ -48,9 +84,50 @@ const FormStudent = ({ dataEntry, degrees, saveData }) => {
     });
   };
 
+  const haAlumno = jerarquiaDeNivel(data.nivelAprobado);
+
+  const degreeCheckboxDisabled = (d) => {
+    if (!data.nivelAprobado) return true;
+    const nivelCarrera = (d.nivel || '').toLowerCase().trim();
+    if (!nivelCarrera) return true;
+    const hn = jerarquiaDeNivel(nivelCarrera);
+    if (hn == null || haAlumno == null) return true;
+    return haAlumno < hn - 1;
+  };
+
+  const degreeCheckboxTitle = (d) => {
+    if (!data.nivelAprobado) return 'Seleccione primero el nivel aprobado del alumno';
+    if (!(d.nivel || '').trim()) return 'La carrera no tiene nivel configurado; edítela en Carreras';
+    if (degreeCheckboxDisabled(d)) return 'El nivel aprobado no alcanza para inscribir en esta carrera';
+    return '';
+  };
+
   const sendData = (e) => {
     e.preventDefault();
-    saveData(data);
+    setEmailError('');
+    setPhoneError('');
+    const emailCheck = validateCorreoElectronicoOpcional(data.email);
+    if (!emailCheck.ok) {
+      setEmailError(emailCheck.message);
+      return;
+    }
+    const phoneCheck = validateTelefonoOpcional(data.phone);
+    if (!phoneCheck.ok) {
+      setPhoneError(phoneCheck.message);
+      return;
+    }
+    const dniCheck = validateDNI(data.dni);
+    if (!dniCheck.ok) {
+      setDniError(dniCheck.message);
+      return;
+    }
+    setDniError('');
+    saveData({
+      ...data,
+      dni: String(data.dni).trim(),
+      email: String(data.email).trim(),
+      phone: data.phone
+    });
   };
 
   const selectableDegrees = (degrees || []).filter(d => {
@@ -93,8 +170,10 @@ const FormStudent = ({ dataEntry, degrees, saveData }) => {
           name="email"
           value={data.email}
           onChange={handleInputChange}
+          isInvalid={!!emailError}
           placeholder="nombre@ejemplo.com"
         />
+        <Form.Control.Feedback type="invalid">{emailError}</Form.Control.Feedback>
       </Form.Group>
 
       <Form.Group className="mb-3" controlId="studentPhone">
@@ -102,9 +181,15 @@ const FormStudent = ({ dataEntry, degrees, saveData }) => {
         <Form.Control
           type="text"
           name="phone"
+          inputMode="numeric"
+          autoComplete="tel"
+          maxLength={15}
           value={data.phone}
-          onChange={handleInputChange}
+          onChange={handlePhoneChange}
+          isInvalid={!!phoneError}
         />
+        <Form.Control.Feedback type="invalid">{phoneError}</Form.Control.Feedback>
+        <Form.Text className="text-muted">Solo números, 7 a 15 dígitos. Deje vacío si no aplica.</Form.Text>
       </Form.Group>
 
       <Form.Group className="mb-3" controlId="studentDni">
@@ -112,10 +197,16 @@ const FormStudent = ({ dataEntry, degrees, saveData }) => {
         <Form.Control
           type="text"
           name="dni"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={8}
           value={data.dni}
           onChange={handleInputChange}
+          isInvalid={!!dniError}
           required
         />
+        <Form.Control.Feedback type="invalid">{dniError}</Form.Control.Feedback>
+        <Form.Text className="text-muted">7 u 8 dígitos numéricos, sin puntos.</Form.Text>
       </Form.Group>
 
       <Form.Group className="mb-3" controlId="studentAddress">
@@ -128,6 +219,27 @@ const FormStudent = ({ dataEntry, degrees, saveData }) => {
         />
       </Form.Group>
 
+      <Form.Group className="mb-3" controlId="studentNivelAprobado">
+        <Form.Label>Nivel aprobado</Form.Label>
+        <div className="border rounded p-2">
+          {NIVELES_ORDENADOS.map((n) => (
+            <Form.Check
+              key={n}
+              type="radio"
+              id={`nivel-aprob-${n}`}
+              name="nivelAprobado"
+              value={n}
+              label={etiquetaNivel(n)}
+              checked={data.nivelAprobado === n}
+              onChange={handleInputChange}
+            />
+          ))}
+        </div>
+        <Form.Text className="text-muted">
+          Indica el máximo nivel cursado/aprobado; los niveles inferiores se consideran aprobados.
+        </Form.Text>
+      </Form.Group>
+
       <Form.Group className="mb-3" controlId="studentDegrees">
         <Form.Label>Carreras</Form.Label>
         <div className="border rounded p-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
@@ -137,14 +249,17 @@ const FormStudent = ({ dataEntry, degrees, saveData }) => {
             selectableDegrees.map(d => {
               const id = degId(d);
               if (!id) return null;
+              const dis = degreeCheckboxDisabled(d);
               return (
                 <Form.Check
                   key={id}
                   type="checkbox"
                   id={`deg-${id}`}
-                  label={d.name}
+                  label={d.name + (d.nivel ? ` (${etiquetaNivel(d.nivel)})` : '')}
+                  title={degreeCheckboxTitle(d)}
                   checked={(data.degreeIds || []).includes(id)}
-                  onChange={() => toggleDegree(id)}
+                  disabled={dis}
+                  onChange={() => { if (!dis) toggleDegree(id); }}
                 />
               );
             })

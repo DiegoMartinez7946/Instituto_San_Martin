@@ -1,6 +1,6 @@
 export const ScreenPermission = {
   alumno: ["Main", "PasswordChange"],
-  administrativo: ["Main", "Students", "PasswordChange", "Degree"],
+  administrativo: ["Main", "Students", "Teachers", "PasswordChange", "Degree"],
   administrador: ["Main", "Roles", "Users", "Shift", "TestType", "PursueType", "PasswordBlank"],
 };
 
