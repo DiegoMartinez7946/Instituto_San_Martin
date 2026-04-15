@@ -10,5 +10,6 @@ export const GlobalState = {
   userLogin: {},
   loading: false,
   error: false,
-  message: ""
+  message: "",
+  portalTime: null,
 };

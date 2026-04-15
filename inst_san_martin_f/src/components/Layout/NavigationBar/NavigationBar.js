@@ -5,6 +5,7 @@ import { faAngleDown, faAngleRight, faHouse } from '@fortawesome/free-solid-svg-
 import lodash from 'lodash';
 import { decodeTokenFromCookie, normalizeRoleFromToken } from '../../../utils/jwt';
 import { useGlobal } from './../../../context/Global/GlobalProvider';
+import { getArgentinaPortalTime } from '../../../context/Global/actions/TimeActions';
 
 import styles from './NavigationBar.module.css';
 
@@ -26,13 +27,23 @@ const NavigationBar = ({ toggleClick }) => {
   const [user, setUser] = useState('');
   const [icon, setIcon] = useState(null);
  
-  const [globalState] = useGlobal();
+  const [globalState, dispatch] = useGlobal();
 
   useEffect(() => {
     const decoded = decodeTokenFromCookie();
     setUser(decoded || {});
     setIcon(<FontAwesomeIcon icon={faAngleDown} />);
   }, [globalState]);
+
+  useEffect(() => {
+    const token = document.cookie.replace("token=", "");
+    if (!token) {
+      return undefined;
+    }
+    getArgentinaPortalTime(dispatch);
+    const id = setInterval(() => getArgentinaPortalTime(dispatch), 30000);
+    return () => clearInterval(id);
+  }, [dispatch, globalState.userLogin]);
 
   return (
     <header className={styles.toolbar}>
@@ -59,6 +70,19 @@ const NavigationBar = ({ toggleClick }) => {
               >
                 usuario: <span className={styles.sessionInfo__strong}>{user.email || '—'}</span>{' '}
                 permisos: <span className={styles.sessionInfo__strong}>{permisoLegible(normalizeRoleFromToken(user))}</span>
+              </div>
+            ) : null}
+            {!lodash.isEmpty(user) && globalState.portalTime ? (
+              <div
+                className={styles.argClock}
+                role="timer"
+                aria-live="polite"
+                title="Hora de referencia (Argentina, America/Argentina/Buenos_Aires)"
+              >
+                <span className={styles.argClock__time}>{globalState.portalTime.hora}</span>
+                <span className={styles.argClock__meta}>
+                  {globalState.portalTime.dia} · {globalState.portalTime.fecha}
+                </span>
               </div>
             ) : null}
             <div className={styles.spacer} />

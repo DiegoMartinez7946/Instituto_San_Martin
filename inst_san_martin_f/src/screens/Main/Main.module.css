@@ -1,3 +1,59 @@
 .container {
   margin-top: 60px;
 }
+
+.title {
+  margin-bottom: 1rem;
+}
+
+.clockRow {
+  justify-content: center;
+}
+
+.clockCard {
+  max-width: 22rem;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 1.1rem 1.25rem 1.15rem;
+  border: 2px solid #c0392b;
+  border-radius: 10px;
+  background: linear-gradient(160deg, #1a1a1a 0%, #2c3e50 100%);
+  color: #ecf0f1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.clockCard__label {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #bdc3c7;
+}
+
+.clockCard__hora {
+  margin: 0 0 0.85rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+  color: #fff;
+}
+
+.clockCard__grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.clockCard__grid dt {
+  margin: 0;
+  color: #95a5a6;
+  font-weight: 500;
+}
+
+.clockCard__grid dd {
+  margin: 0;
+  color: #ecf0f1;
+}
