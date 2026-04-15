@@ -125,3 +125,15 @@ func UpdateStudentService(s models.Student) (string, int, error) {
 	}
 	return "El alumno se actualizo correctamente", 200, nil
 }
+
+/* UpdateStudentActiveService solo activo/inactivo */
+func UpdateStudentActiveService(id primitive.ObjectID, active bool) (string, int, error) {
+	if id.IsZero() {
+		return "Falta el id del alumno", 199, nil
+	}
+	okDB, err := db.UpdateStudentActiveDB(id, active)
+	if err != nil || !okDB {
+		return "No se pudo actualizar el estado del alumno", 400, err
+	}
+	return "El estado del alumno se actualizo correctamente", 200, nil
+}

@@ -4,6 +4,7 @@ import { Button, Container, Row, Col } from 'react-bootstrap';
 import ModalTeacher from './Modal/ModalTeacher';
 import Table from '../../components/Table/Table';
 import Notification from '../../components/Notification/Notification';
+import ConfirmChangeEstadoModal from '../../components/ConfirmChangeEstadoModal/ConfirmChangeEstadoModal';
 
 import { useGlobal } from '../../context/Global/GlobalProvider';
 import { getDegree } from '../../context/Global/actions/DegreeActions';
@@ -11,6 +12,7 @@ import {
   getTeachers,
   addTeacher,
   updateTeacher,
+  changeActiveTeacher,
   getTitulosHabilitantes,
   getModalidadesDocente
 } from '../../context/Global/actions/TeacherActions';
@@ -23,12 +25,6 @@ const degreeNameById = (degrees, hexId) => {
   return d ? d.name : hexId;
 };
 
-const tituloLabel = (titulos, id) => {
-  const t = (titulos || []).find((x) => (x.id || x.ID) === id);
-  if (!t) return id || '—';
-  return String(t.codigo).toUpperCase() === 'SI' ? 'Sí' : 'No';
-};
-
 const modalidadLabel = (mods, id) => {
   const m = (mods || []).find((x) => (x.id || x.ID) === id);
   if (!m) return id || '—';
@@ -39,7 +35,16 @@ const modalidadLabel = (mods, id) => {
   return m.codigo;
 };
 
-const buildTableRows = (teachers, degrees, titulos, modalidades) =>
+const carreraYModalidadResumen = (t, degrees, modalidades) => {
+  const parts = (t.careers || []).map((c) => {
+    const nombre = degreeNameById(degrees, c.degreeId);
+    const mod = modalidadLabel(modalidades, c.modalidadId);
+    return `${nombre}: ${mod}`;
+  });
+  return parts.length ? parts.join('; ') : '—';
+};
+
+const buildTableRows = (teachers, degrees, modalidades) =>
   (teachers || []).map((t) => ({
     idDocente: t.id || '',
     nombre: t.name,
@@ -48,9 +53,8 @@ const buildTableRows = (teachers, degrees, titulos, modalidades) =>
     dni: t.dni,
     direccion: t.address || '',
     enseniaEn: (t.enseniaEn || []).map((n) => etiquetaNivel(n)).join(', '),
-    carreras: (t.degreeIds || []).map((did) => degreeNameById(degrees, did)).join(', '),
-    tituloHabilitante: tituloLabel(titulos, t.tituloHabilitanteId),
-    modalidad: modalidadLabel(modalidades, t.modalidadId)
+    resumen: carreraYModalidadResumen(t, degrees, modalidades),
+    estado: t.active !== false
   }));
 
 function Teachers() {
@@ -60,6 +64,8 @@ function Teachers() {
   const [error, setError] = useState(null);
   const [titulosHabilitantes, setTitulosHabilitantes] = useState([]);
   const [modalidades, setModalidades] = useState([]);
+  const [activeConfirm, setActiveConfirm] = useState(null);
+  const [activeConfirmLoading, setActiveConfirmLoading] = useState(false);
 
   const showError = (message, type) => {
     message
@@ -151,22 +157,48 @@ function Teachers() {
       setDataRow(full || row);
       setShow(true);
     }
+    if (ev === 'check') {
+      const full = (globalState.teachers || []).find((t) => t.id === row.idDocente);
+      const cur = full ? full.active !== false : row.estado === true;
+      setActiveConfirm({
+        id: row.idDocente,
+        name: row.nombre || '',
+        fromActive: cur,
+        toActive: !cur
+      });
+    }
+  };
+
+  const confirmTeacherActive = async () => {
+    if (!activeConfirm) return;
+    setActiveConfirmLoading(true);
+    const result = await changeActiveTeacher(globalDispatch, {
+      id: activeConfirm.id,
+      active: activeConfirm.toActive
+    });
+    buildNotification(result);
+    setActiveConfirmLoading(false);
+    const codeNum = result && result.code !== undefined ? Number(result.code) : NaN;
+    if (codeNum === 200) {
+      setDataRow((prev) => {
+        if (!prev || prev.id !== activeConfirm.id) return prev;
+        return { ...prev, active: activeConfirm.toActive };
+      });
+      setActiveConfirm(null);
+    } else if (codeNum === 199) {
+      setActiveConfirm(null);
+    }
   };
 
   const tableData = useMemo(
     () =>
-      buildTableRows(
-        globalState.teachers,
-        globalState.degrees,
-        titulosHabilitantes,
-        modalidades
-      ),
-    [globalState.teachers, globalState.degrees, titulosHabilitantes, modalidades]
+      buildTableRows(globalState.teachers, globalState.degrees, modalidades),
+    [globalState.teachers, globalState.degrees, modalidades]
   );
 
   return (
     <React.Fragment>
-      <Container className={styles.container}>
+      <Container fluid className={styles.container}>
         {error}
         <Row>
           <h1>Docentes</h1>
@@ -181,21 +213,19 @@ function Teachers() {
           </Col>
         </Row>
         <br />
-        <Row>
-          <Col xs lg="1" />
-          <Col>
+        <Row className={styles.tableRowWrap}>
+          <Col xs={12} className="px-2 px-md-3">
             {tableData.length > 0 ? (
               <Table
                 key="teachers-table"
                 tableEvents={(e, d) => tableEvents(e, d)}
                 data={tableData}
-                actions="e"
+                actions="ec"
               />
             ) : (
               <p className="text-muted">No hay docentes registrados.</p>
             )}
           </Col>
-          <Col xs lg="1" />
         </Row>
       </Container>
       <ModalTeacher
@@ -206,6 +236,21 @@ function Teachers() {
         degrees={globalState.degrees || []}
         titulosHabilitantes={titulosHabilitantes}
         modalidades={modalidades}
+        changeActive={async (payload) => {
+          const result = await changeActiveTeacher(globalDispatch, payload);
+          buildNotification(result);
+          return result;
+        }}
+      />
+      <ConfirmChangeEstadoModal
+        show={!!activeConfirm}
+        onHide={() => !activeConfirmLoading && setActiveConfirm(null)}
+        kind="docente"
+        itemName={activeConfirm ? activeConfirm.name : ''}
+        fromActive={activeConfirm ? activeConfirm.fromActive : true}
+        toActive={activeConfirm ? activeConfirm.toActive : true}
+        onConfirm={confirmTeacherActive}
+        confirming={activeConfirmLoading}
       />
     </React.Fragment>
   );

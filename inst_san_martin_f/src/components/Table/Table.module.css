@@ -3,22 +3,57 @@
   background-color: #17a2b8;
   border-top-left-radius: 25px;
   border-top-right-radius: 25px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0 10px 14px;
+  overflow-x: auto;
+}
+
+/* Sobrescribe .row de Bootstrap (flex-wrap: wrap) para que Acciones no baje bajo Nombre */
+.Table :global(.row).tableRow,
+.Table .tableRow {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch;
+  margin-left: 0;
+  margin-right: 0;
+  width: 100%;
 }
 
 .HeaderCol {
   background-color: #17a2b8;
-  text-align: center;
+  text-align: left;
   border-bottom: 2px solid white;
-  padding-bottom: 5px;
+  padding: 8px 10px 6px;
   font-weight: bold;
   color: white;
 }
 
 .BodyCol {
   background-color: #17a2b8;
-  text-align: center;
-  margin: 5px 0;
+  text-align: left;
+  margin: 4px 0;
+  padding: 6px 8px;
   color: white;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.BodyColActions {
+  text-align: center;
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  min-width: 5.75rem;
+  max-width: none;
+  align-self: center;
+}
+
+.colWide {
+  flex: 2.4 1 260px !important;
+  min-width: 220px;
+  max-width: none;
 }
 
 svg {

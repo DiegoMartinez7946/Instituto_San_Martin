@@ -17,6 +17,7 @@ type Student struct {
 	Address        string               `bson:"address" json:"address"`
 	NivelAprobado  string               `bson:"nivelaprobado" json:"nivelAprobado"`
 	DegreeIDs      []primitive.ObjectID `bson:"degreeids" json:"degreeIds"`
+	Active         bool                 `bson:"active" json:"active"`
 	CreatedAt      time.Time            `bson:"createdat" json:"createdAt,omitempty"`
 	UpdatedAt      time.Time            `bson:"updatedat" json:"updatedAt,omitempty"`
 }

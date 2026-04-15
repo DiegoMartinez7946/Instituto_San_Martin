@@ -16,9 +16,14 @@ const buildTeacherBody = (item) => ({
   dni: item.dni != null ? String(item.dni) : '',
   address: item.address !== undefined && item.address != null ? String(item.address) : '',
   enseniaEn: Array.isArray(item.enseniaEn) ? item.enseniaEn : [],
-  degreeIds: Array.isArray(item.degreeIds) ? item.degreeIds : [],
-  tituloHabilitanteId: item.tituloHabilitanteId != null ? String(item.tituloHabilitanteId) : '',
-  modalidadId: item.modalidadId != null ? String(item.modalidadId) : ''
+  active: item.active === false ? false : true,
+  careers: Array.isArray(item.careers)
+    ? item.careers.map((c) => ({
+        degreeId: c.degreeId != null ? String(c.degreeId) : '',
+        tituloHabilitanteId: c.tituloHabilitanteId != null ? String(c.tituloHabilitanteId) : '',
+        modalidadId: c.modalidadId != null ? String(c.modalidadId) : ''
+      }))
+    : []
 });
 
 export const getTitulosHabilitantes = async () => {
@@ -45,6 +50,18 @@ export const updateTeacher = async (dispatch, item) => {
   return result.data;
 };
 
+export const changeActiveTeacher = async (dispatch, item) => {
+  const result = await clientAxios.put(
+    '/teacher/active',
+    { id: item.id != null ? String(item.id) : '', active: item.active === true },
+    authHeaders()
+  );
+  if (Number(result.data.code) === 200) {
+    await getTeachers(dispatch);
+  }
+  return result.data;
+};
+
 export const getTeachers = async (dispatch) => {
   const result = await clientAxios.get('/teacher', authHeaders());
   const list = result.data.data || [];
@@ -56,9 +73,14 @@ export const getTeachers = async (dispatch) => {
     dni: t.dni,
     address: t.address || '',
     enseniaEn: t.enseniaEn || [],
-    degreeIds: t.degreeIds || [],
-    tituloHabilitanteId: t.tituloHabilitanteId || '',
-    modalidadId: t.modalidadId || ''
+    active: t.active !== false,
+    careers: Array.isArray(t.careers)
+      ? t.careers.map((c) => ({
+          degreeId: c.degreeId,
+          tituloHabilitanteId: c.tituloHabilitanteId,
+          modalidadId: c.modalidadId
+        }))
+      : []
   }));
   dispatch({ type: 'GET_TEACHERS', payload: normalized });
   return normalized;

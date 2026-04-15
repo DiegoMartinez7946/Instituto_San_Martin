@@ -17,6 +17,7 @@ func TeacherRoutes(router *mux.Router) *mux.Router {
 	router.HandleFunc("/teacher", chain(controllers.GetTeachers)).Methods("GET")
 	router.HandleFunc("/teacher", chain(controllers.InsertTeacher)).Methods("POST")
 	router.HandleFunc("/teacher", chain(controllers.UpdateTeacher)).Methods("PUT")
+	router.HandleFunc("/teacher/active", chain(controllers.ChangeActiveTeacher)).Methods("PUT")
 
 	router.HandleFunc("/titulo-habilitante", chain(controllers.GetTitulosHabilitantes)).Methods("GET")
 	router.HandleFunc("/modalidad-docente", chain(controllers.GetModalidadesDoc)).Methods("GET")

@@ -37,37 +37,88 @@ func normalizeEnseniaEn(list []string) []string {
 	return out
 }
 
-func validateTeacherDegrees(ids []primitive.ObjectID) (string, bool) {
-	if len(ids) == 0 {
-		return "Debe seleccionar al menos una carrera", false
+func codigoTitulo(id primitive.ObjectID) (string, bool) {
+	t, ok := db.GetTituloHabilitanteByID(id)
+	if !ok {
+		return "", false
 	}
-	for _, id := range ids {
-		if id.IsZero() || !db.DegreeDocumentExists(id) {
-			return "Una o mas carreras no existen", false
-		}
-	}
-	return "", true
+	return strings.ToUpper(strings.TrimSpace(t.Codigo)), true
 }
 
-func validateTitularModalidad(t models.Teacher) (string, bool) {
-	mod, ok := db.GetModalidadByID(t.ModalidadID)
+func codigoModalidad(id primitive.ObjectID) (string, bool) {
+	m, ok := db.GetModalidadByID(id)
 	if !ok {
-		return "Modalidad no valida", false
+		return "", false
 	}
-	tit, ok := db.GetTituloHabilitanteByID(t.TituloHabilitanteID)
-	if !ok {
-		return "Titulo habilitante no valido", false
+	return strings.ToUpper(strings.TrimSpace(m.Codigo)), true
+}
+
+func validateTeacherCareers(t *models.Teacher) (string, bool) {
+	if len(t.Careers) == 0 {
+		return "Debe seleccionar al menos una carrera y definir titulo y modalidad por carrera", false
 	}
-	if strings.ToUpper(strings.TrimSpace(mod.Codigo)) == "TITULAR" &&
-		strings.ToUpper(strings.TrimSpace(tit.Codigo)) != "SI" {
-		return "Solo puede ser titular si tiene titulo habilitante SI", false
+	ens := make(map[string]struct{})
+	for _, n := range t.EnseniaEn {
+		ens[strings.ToLower(strings.TrimSpace(n))] = struct{}{}
+	}
+	seenDeg := make(map[string]struct{})
+	for _, c := range t.Careers {
+		if c.DegreeID.IsZero() {
+			return "Carrera invalida en la lista", false
+		}
+		if !db.DegreeDocumentExists(c.DegreeID) {
+			return "Una o mas carreras no existen", false
+		}
+		h := c.DegreeID.Hex()
+		if _, dup := seenDeg[h]; dup {
+			return "No puede repetir la misma carrera", false
+		}
+		seenDeg[h] = struct{}{}
+
+		deg, ok := db.GetDegreeByID(c.DegreeID)
+		if !ok {
+			return "Una o mas carreras no existen", false
+		}
+		niv := strings.ToLower(strings.TrimSpace(deg.Nivel))
+		if niv == "" {
+			return "La carrera \"" + deg.Name + "\" no tiene nivel configurado", false
+		}
+		if _, ok := ens[niv]; !ok {
+			return "La carrera \"" + deg.Name + "\" no esta cubierta por los niveles en que ensenia", false
+		}
+
+		if c.TituloHabilitanteID.IsZero() || c.ModalidadID.IsZero() {
+			return "Cada carrera requiere titulo habilitante y modalidad", false
+		}
+		if _, ok := db.GetTituloHabilitanteByID(c.TituloHabilitanteID); !ok {
+			return "Titulo habilitante no valido", false
+		}
+		if _, ok := db.GetModalidadByID(c.ModalidadID); !ok {
+			return "Modalidad no valida", false
+		}
+
+		tit, _ := codigoTitulo(c.TituloHabilitanteID)
+		mod, _ := codigoModalidad(c.ModalidadID)
+		if mod == "TITULAR" && tit != "SI" {
+			return "En la carrera \"" + deg.Name + "\" solo puede ser titular con titulo habilitante SI", false
+		}
+		if tit != "SI" && mod != "PROVISIONAL" && mod != "SUPLENTE" {
+			return "En la carrera \"" + deg.Name + "\" sin titulo habilitante solo puede modalidad provisional o suplente", false
+		}
 	}
 	return "", true
 }
 
 /* GetTeachersService */
 func GetTeachersService() ([]*models.Teacher, bool) {
-	return db.GetTeachersDB()
+	list, ok := db.GetTeachersDB()
+	if !ok {
+		return list, ok
+	}
+	for _, te := range list {
+		db.FillTeacherCareersFromLegacy(te)
+	}
+	return list, true
 }
 
 /* InsertTeacherService */
@@ -96,13 +147,7 @@ func InsertTeacherService(t models.Teacher) (string, int, error) {
 	if len(t.EnseniaEn) == 0 {
 		return "Debe indicar al menos un nivel en que ensenia", 199, nil
 	}
-	if msg, ok := validateTeacherDegrees(t.DegreeIDs); !ok {
-		return msg, 199, nil
-	}
-	if t.TituloHabilitanteID.IsZero() || t.ModalidadID.IsZero() {
-		return "Debe seleccionar titulo habilitante y modalidad", 199, nil
-	}
-	if msg, ok := validateTitularModalidad(t); !ok {
+	if msg, ok := validateTeacherCareers(&t); !ok {
 		return msg, 199, nil
 	}
 
@@ -145,13 +190,7 @@ func UpdateTeacherService(t models.Teacher) (string, int, error) {
 	if len(t.EnseniaEn) == 0 {
 		return "Debe indicar al menos un nivel en que ensenia", 199, nil
 	}
-	if msg, ok := validateTeacherDegrees(t.DegreeIDs); !ok {
-		return msg, 199, nil
-	}
-	if t.TituloHabilitanteID.IsZero() || t.ModalidadID.IsZero() {
-		return "Debe seleccionar titulo habilitante y modalidad", 199, nil
-	}
-	if msg, ok := validateTitularModalidad(t); !ok {
+	if msg, ok := validateTeacherCareers(&t); !ok {
 		return msg, 199, nil
 	}
 
@@ -162,3 +201,28 @@ func UpdateTeacherService(t models.Teacher) (string, int, error) {
 	}
 	return "El docente se actualizo correctamente", 200, nil
 }
+
+const msgTeacherTieneAsignaciones = "el docente tiene asignaciones, por favor limpiar las mismas"
+
+/* UpdateTeacherActiveService solo activo/inactivo; no permite pasar a inactivo si tiene carreras asignadas */
+func UpdateTeacherActiveService(id primitive.ObjectID, active bool) (string, int, error) {
+	if id.IsZero() {
+		return "Falta el id del docente", 199, nil
+	}
+	t, ok := db.GetTeacherByID(id)
+	if !ok {
+		return "Docente no encontrado", 199, nil
+	}
+	if !active {
+		db.FillTeacherCareersFromLegacy(&t)
+		if len(t.Careers) > 0 {
+			return msgTeacherTieneAsignaciones, 199, nil
+		}
+	}
+	okDB, err := db.UpdateTeacherActiveDB(id, active)
+	if err != nil || !okDB {
+		return "No se pudo actualizar el estado del docente", 400, err
+	}
+	return "El estado del docente se actualizo correctamente", 200, nil
+}
+

@@ -9,17 +9,22 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+type careerRowPayload struct {
+	DegreeID            string `json:"degreeId"`
+	TituloHabilitanteID string `json:"tituloHabilitanteId"`
+	ModalidadID         string `json:"modalidadId"`
+}
+
 type teacherPayload struct {
-	ID                  string   `json:"id"`
-	Name                string   `json:"name"`
-	Email               string   `json:"email"`
-	Phone               string   `json:"phone"`
-	DNI                 string   `json:"dni"`
-	Address             string   `json:"address"`
-	EnseniaEn           []string `json:"enseniaEn"`
-	DegreeIDs           []string `json:"degreeIds"`
-	TituloHabilitanteID string   `json:"tituloHabilitanteId"`
-	ModalidadID         string   `json:"modalidadId"`
+	ID        string             `json:"id"`
+	Name      string             `json:"name"`
+	Email     string             `json:"email"`
+	Phone     string             `json:"phone"`
+	DNI       string             `json:"dni"`
+	Address   string             `json:"address"`
+	EnseniaEn []string           `json:"enseniaEn"`
+	Careers   []careerRowPayload `json:"careers"`
+	Active    *bool              `json:"active"`
 }
 
 func parseTeacherPayload(p teacherPayload) (models.Teacher, error) {
@@ -38,26 +43,29 @@ func parseTeacherPayload(p teacherPayload) (models.Teacher, error) {
 		}
 		t.ID = oid
 	}
-	for _, hex := range p.DegreeIDs {
-		oid, err := primitive.ObjectIDFromHex(hex)
+	for _, row := range p.Careers {
+		did, err := primitive.ObjectIDFromHex(row.DegreeID)
 		if err != nil {
 			return t, err
 		}
-		t.DegreeIDs = append(t.DegreeIDs, oid)
+		tid, err := primitive.ObjectIDFromHex(row.TituloHabilitanteID)
+		if err != nil {
+			return t, err
+		}
+		mid, err := primitive.ObjectIDFromHex(row.ModalidadID)
+		if err != nil {
+			return t, err
+		}
+		t.Careers = append(t.Careers, models.TeacherCareerAssignment{
+			DegreeID:            did,
+			TituloHabilitanteID: tid,
+			ModalidadID:         mid,
+		})
 	}
-	if p.TituloHabilitanteID != "" {
-		oid, err := primitive.ObjectIDFromHex(p.TituloHabilitanteID)
-		if err != nil {
-			return t, err
-		}
-		t.TituloHabilitanteID = oid
-	}
-	if p.ModalidadID != "" {
-		oid, err := primitive.ObjectIDFromHex(p.ModalidadID)
-		if err != nil {
-			return t, err
-		}
-		t.ModalidadID = oid
+	if p.Active != nil {
+		t.Active = *p.Active
+	} else {
+		t.Active = true
 	}
 	return t, nil
 }
@@ -120,6 +128,37 @@ func UpdateTeacher(w http.ResponseWriter, r *http.Request) {
 	msg, code, err := services.UpdateTeacherService(t)
 	if err != nil || code != 200 {
 		res := models.Response{Message: "Error al actualizar el docente. " + msg, Code: code}
+		_ = json.NewEncoder(w).Encode(res)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(models.Response{Message: msg, Code: code})
+}
+
+type teacherActivePayload struct {
+	ID     string `json:"id"`
+	Active bool   `json:"active"`
+}
+
+/* ChangeActiveTeacher PUT /teacher/active */
+func ChangeActiveTeacher(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var p teacherActivePayload
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		_ = json.NewEncoder(w).Encode(models.Response{Message: "Parametros invalidos", Code: 400})
+		return
+	}
+	oid, err := primitive.ObjectIDFromHex(p.ID)
+	if err != nil {
+		_ = json.NewEncoder(w).Encode(models.Response{Message: "Id de docente invalido", Code: 400})
+		return
+	}
+	msg, code, err := services.UpdateTeacherActiveService(oid, p.Active)
+	if err != nil || code != 200 {
+		res := models.Response{Message: msg, Code: code}
+		if code != 199 {
+			res.Message = "Error al actualizar el estado del docente. " + msg
+		}
 		_ = json.NewEncoder(w).Encode(res)
 		return
 	}

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Form, Button } from 'react-bootstrap';
 
+import ConfirmChangeEstadoModal from '../../../components/ConfirmChangeEstadoModal/ConfirmChangeEstadoModal';
 import { NIVELES_ORDENADOS, etiquetaNivel } from '../../../constant/nivelesAcademicos';
 import { validateDNI } from '../../../utils/dni';
 import {
@@ -11,12 +12,38 @@ import {
 
 const degId = (d) => (d && (d.id || d.ID)) || '';
 
+const normalizeCareerRow = (c) => ({
+  degreeId: c.degreeId != null ? String(c.degreeId) : '',
+  tituloHabilitanteId: c.tituloHabilitanteId != null ? String(c.tituloHabilitanteId) : '',
+  modalidadId: c.modalidadId != null ? String(c.modalidadId) : ''
+});
+
+/** Carreras cuyo nivel de la carrera está incluido en enseniaEn (lista de niveles del docente). */
+const filterCareersByEnsenia = (careerRows, enseniaEn, degreesList) => {
+  const niveles = new Set((enseniaEn || []).map((n) => String(n).toLowerCase().trim()));
+  return (careerRows || []).filter((row) => {
+    const did = String(row.degreeId || '');
+    if (!did) return false;
+    const d = (degreesList || []).find((x) => degId(x) === did);
+    if (!d) return false;
+    const n = String(d.nivel || '').toLowerCase().trim();
+    return n && niveles.has(n);
+  });
+};
+
+const catalogId = (rows, code) => {
+  const u = String(code).toUpperCase();
+  const r = (rows || []).find((x) => String(x.codigo).toUpperCase() === u);
+  return r ? r.id || r.ID : '';
+};
+
 const FormTeacher = ({
   dataEntry,
   degrees,
   titulosHabilitantes,
   modalidades,
-  saveData
+  saveData,
+  changeActive
 }) => {
   const [dniError, setDniError] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -29,44 +56,90 @@ const FormTeacher = ({
     dni: '',
     address: '',
     enseniaEn: [],
-    degreeIds: [],
-    tituloHabilitanteId: '',
-    modalidadId: ''
+    active: true
   });
+  const [careers, setCareers] = useState([]);
+  const [careerError, setCareerError] = useState('');
+  const [activeFormConfirm, setActiveFormConfirm] = useState(null);
+  const [activeFormSaving, setActiveFormSaving] = useState(false);
+
+  const ids = useMemo(
+    () => ({
+      tituloSi: catalogId(titulosHabilitantes, 'SI'),
+      tituloNo: catalogId(titulosHabilitantes, 'NO'),
+      titular: catalogId(modalidades, 'TITULAR'),
+      provisional: catalogId(modalidades, 'PROVISIONAL'),
+      suplente: catalogId(modalidades, 'SUPLENTE')
+    }),
+    [titulosHabilitantes, modalidades]
+  );
+
+  const degreeNivelInEnsenia = useCallback(
+    (d) => {
+      const n = String(d.nivel || '').toLowerCase().trim();
+      return n && (data.enseniaEn || []).includes(n);
+    },
+    [data.enseniaEn]
+  );
 
   useEffect(() => {
     const entry = dataEntry && typeof dataEntry === 'object' ? dataEntry : null;
-    setData({
-      id: (entry && entry.id) || '',
-      name: (entry && entry.name) || '',
-      email: (entry && entry.email) || '',
-      phone: sanitizeTelefonoInput((entry && entry.phone) || ''),
-      dni: (entry && entry.dni) || '',
-      address: (entry && entry.address) || '',
-      enseniaEn: entry && Array.isArray(entry.enseniaEn) ? [...entry.enseniaEn] : [],
-      degreeIds: entry && Array.isArray(entry.degreeIds) ? [...entry.degreeIds] : [],
-      tituloHabilitanteId: (entry && entry.tituloHabilitanteId) || '',
-      modalidadId: (entry && entry.modalidadId) || ''
-    });
-  }, [dataEntry]);
-
-  const tituloEsSi = useMemo(() => {
-    const row = (titulosHabilitantes || []).find(
-      (x) => (x.id || x.ID) === data.tituloHabilitanteId
-    );
-    return row && String(row.codigo).toUpperCase() === 'SI';
-  }, [titulosHabilitantes, data.tituloHabilitanteId]);
-
-  useEffect(() => {
-    if (tituloEsSi) return;
-    const mod = (modalidades || []).find((m) => (m.id || m.ID) === data.modalidadId);
-    if (mod && String(mod.codigo).toUpperCase() === 'TITULAR') {
-      const fallback = (modalidades || []).find((m) => String(m.codigo).toUpperCase() !== 'TITULAR');
-      if (fallback) {
-        setData((prev) => ({ ...prev, modalidadId: fallback.id || fallback.ID }));
-      }
+    if (!entry) {
+      setData({
+        id: '',
+        name: '',
+        email: '',
+        phone: '',
+        dni: '',
+        address: '',
+        enseniaEn: [],
+        active: true
+      });
+      setCareers([]);
+      setActiveFormConfirm(null);
+      return;
     }
-  }, [tituloEsSi, modalidades, data.modalidadId]);
+    const enseniaEn = Array.isArray(entry.enseniaEn) ? [...entry.enseniaEn] : [];
+    setData({
+      id: entry.id || '',
+      name: entry.name || '',
+      email: entry.email || '',
+      phone: sanitizeTelefonoInput(entry.phone || ''),
+      dni: entry.dni || '',
+      address: entry.address || '',
+      enseniaEn,
+      active: entry.active !== false
+    });
+    const raw = Array.isArray(entry.careers) ? entry.careers.map(normalizeCareerRow) : [];
+    setCareers(filterCareersByEnsenia(raw, enseniaEn, degrees));
+    setActiveFormConfirm(null);
+  }, [dataEntry, degrees]);
+
+  const openActiveConfirm = (toActive) => {
+    if (!data.id || !changeActive) return;
+    const from = data.active !== false;
+    if (toActive === from) return;
+    setActiveFormConfirm({ fromActive: from, toActive });
+  };
+
+  const confirmActiveForm = async () => {
+    if (!activeFormConfirm || !data.id || !changeActive) return;
+    setActiveFormSaving(true);
+    const res = await changeActive({ id: data.id, active: activeFormConfirm.toActive });
+    setActiveFormSaving(false);
+    const code = Number(res.code);
+    if (code === 200) {
+      setData((prev) => ({ ...prev, active: activeFormConfirm.toActive }));
+      setActiveFormConfirm(null);
+    } else if (code === 199) {
+      setActiveFormConfirm(null);
+    }
+  };
+
+  const tituloEsSi = (tituloHabilitanteId) => {
+    const row = (titulosHabilitantes || []).find((x) => (x.id || x.ID) === tituloHabilitanteId);
+    return row && String(row.codigo).toUpperCase() === 'SI';
+  };
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -86,21 +159,53 @@ const FormTeacher = ({
   };
 
   const toggleNivel = (nivel) => {
+    setCareerError('');
     setData((prev) => {
       const set = new Set(prev.enseniaEn || []);
       if (set.has(nivel)) set.delete(nivel);
       else set.add(nivel);
-      return { ...prev, enseniaEn: [...set] };
+      const enseniaEn = [...set];
+      setCareers((careersPrev) => filterCareersByEnsenia(careersPrev, enseniaEn, degrees));
+      return { ...prev, enseniaEn };
     });
   };
 
   const toggleDegree = (hexId) => {
-    setData((prev) => {
-      const set = new Set(prev.degreeIds || []);
-      if (set.has(hexId)) set.delete(hexId);
-      else set.add(hexId);
-      return { ...prev, degreeIds: [...set] };
+    setCareerError('');
+    if (!ids.tituloNo || !ids.provisional) return;
+    setCareers((prev) => {
+      const exists = prev.some((c) => c.degreeId === hexId);
+      if (exists) {
+        return prev.filter((c) => c.degreeId !== hexId);
+      }
+      return [
+        ...prev,
+        {
+          degreeId: hexId,
+          tituloHabilitanteId: ids.tituloNo,
+          modalidadId: ids.provisional
+        }
+      ];
     });
+  };
+
+  const setTituloForCareer = (degreeId, tituloHabilitanteId) => {
+    setCareers((prev) =>
+      prev.map((c) => {
+        if (c.degreeId !== degreeId) return c;
+        let modalidadId = c.modalidadId;
+        if (!tituloEsSi(tituloHabilitanteId) && c.modalidadId === ids.titular) {
+          modalidadId = ids.provisional || modalidadId;
+        }
+        return { ...c, tituloHabilitanteId, modalidadId };
+      })
+    );
+  };
+
+  const setModalidadForCareer = (degreeId, modalidadId) => {
+    setCareers((prev) =>
+      prev.map((c) => (c.degreeId === degreeId ? { ...c, modalidadId } : c))
+    );
   };
 
   const sendData = (e) => {
@@ -123,24 +228,30 @@ const FormTeacher = ({
       return;
     }
     setDniError('');
+    if (!careers.length) {
+      setCareerError('Debe seleccionar al menos una carrera y completar título y modalidad por carrera.');
+      return;
+    }
+    setCareerError('');
     saveData({
       ...data,
+      active: data.active !== false,
       dni: String(data.dni).trim(),
       email: String(data.email).trim(),
-      phone: data.phone
+      phone: data.phone,
+      careers
     });
   };
 
   const selectableDegrees = (degrees || []).filter((d) => {
     const hid = degId(d);
+    if (!hid) return false;
     if (d.active === true) return true;
-    if ((data.degreeIds || []).includes(hid)) return true;
+    if (careers.some((c) => c.degreeId === hid)) return true;
     return false;
   });
 
-  const modalidadDisabled = (m) => {
-    return String(m.codigo).toUpperCase() === 'TITULAR' && !tituloEsSi;
-  };
+  const careerForDegree = (hexId) => careers.find((c) => c.degreeId === hexId);
 
   return (
     <Form onSubmit={sendData}>
@@ -221,83 +332,140 @@ const FormTeacher = ({
             />
           ))}
         </div>
-        <Form.Text className="text-muted">Puede marcar más de un nivel.</Form.Text>
+        <Form.Text className="text-muted">Puede marcar más de un nivel. Las carreras deben coincidir con estos niveles.</Form.Text>
       </Form.Group>
 
-      <Form.Group className="mb-3" controlId="teacherTitulo">
-        <Form.Label>Título habilitante</Form.Label>
-        <div className="border rounded p-2">
-          {(titulosHabilitantes || []).map((t) => {
-            const tid = t.id || t.ID;
-            if (!tid) return null;
-            return (
-              <Form.Check
-                key={tid}
-                type="radio"
-                name="tituloHabilitanteId"
-                id={`titulo-${tid}`}
-                value={tid}
-                label={String(t.codigo).toUpperCase() === 'SI' ? 'Sí' : 'No'}
-                checked={data.tituloHabilitanteId === tid}
-                onChange={handleInputChange}
-              />
-            );
-          })}
-        </div>
-      </Form.Group>
-
-      <Form.Group className="mb-3" controlId="teacherModalidad">
-        <Form.Label>Modalidad</Form.Label>
-        <div className="border rounded p-2">
-          {(modalidades || []).map((m) => {
-            const mid = m.id || m.ID;
-            if (!mid) return null;
-            const dis = modalidadDisabled(m);
-            return (
-              <Form.Check
-                key={mid}
-                type="radio"
-                name="modalidadId"
-                id={`mod-${mid}`}
-                value={mid}
-                label={etiquetaModalidad(m.codigo)}
-                checked={data.modalidadId === mid}
-                disabled={dis}
-                title={dis ? 'Titular solo con título habilitante Sí' : ''}
-                onChange={handleInputChange}
-              />
-            );
-          })}
-        </div>
-      </Form.Group>
+      {data.id ? (
+        <Form.Group className="mb-3" controlId="teacherEstado">
+          <Form.Label>Estado</Form.Label>
+          <div>
+            <Form.Check
+              inline
+              type="radio"
+              id="teacher-active-si"
+              name="teacherEstadoActivo"
+              label="Activo"
+              checked={data.active !== false}
+              onChange={() => openActiveConfirm(true)}
+            />
+            <Form.Check
+              inline
+              type="radio"
+              id="teacher-active-no"
+              name="teacherEstadoActivo"
+              label="Inactivo"
+              checked={data.active === false}
+              onChange={() => openActiveConfirm(false)}
+            />
+          </div>
+          <Form.Text className="text-muted">El cambio requiere confirmación.</Form.Text>
+        </Form.Group>
+      ) : null}
 
       <Form.Group className="mb-3" controlId="teacherDegrees">
-        <Form.Label>Carreras</Form.Label>
-        <div className="border rounded p-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+        <Form.Label>Carreras y condición laboral</Form.Label>
+        {careerError ? (
+          <div className="text-danger small mb-2">{careerError}</div>
+        ) : null}
+        <div className="border rounded p-2" style={{ maxHeight: 'none', overflowY: 'visible' }}>
           {selectableDegrees.length === 0 ? (
             <span className="text-muted">No hay carreras activas. Cree carreras primero.</span>
           ) : (
             selectableDegrees.map((d) => {
               const id = degId(d);
               if (!id) return null;
+              const allowed = degreeNivelInEnsenia(d);
+              const checked = !!careerForDegree(id);
+              const row = careerForDegree(id);
+              const si = row && tituloEsSi(row.tituloHabilitanteId);
               return (
-                <Form.Check
-                  key={id}
-                  type="checkbox"
-                  id={`deg-${id}`}
-                  label={d.name + (d.nivel ? ` (${etiquetaNivel(d.nivel)})` : '')}
-                  checked={(data.degreeIds || []).includes(id)}
-                  onChange={() => toggleDegree(id)}
-                />
+                <div key={id} className="mb-3 pb-2 border-bottom">
+                  <Form.Check
+                    type="checkbox"
+                    id={`deg-${id}`}
+                    label={d.name + (d.nivel ? ` (${etiquetaNivel(d.nivel)})` : '')}
+                    checked={checked}
+                    disabled={!allowed}
+                    title={!allowed ? 'Marque primero el nivel correspondiente en Enseña en' : ''}
+                    onChange={() => {
+                      if (allowed) toggleDegree(id);
+                    }}
+                  />
+                  {checked && row && (
+                    <div className="ms-4 mt-2 small">
+                      <div className="mb-2">
+                        <span className="fw-semibold d-block mb-1">Título habilitante (esta carrera)</span>
+                        {(titulosHabilitantes || []).map((t) => {
+                          const tid = t.id || t.ID;
+                          if (!tid) return null;
+                          return (
+                            <Form.Check
+                              key={tid}
+                              inline
+                              type="radio"
+                              name={`titulo-${id}`}
+                              id={`titulo-${id}-${tid}`}
+                              label={String(t.codigo).toUpperCase() === 'SI' ? 'Sí' : 'No'}
+                              checked={row.tituloHabilitanteId === tid}
+                              onChange={() => setTituloForCareer(id, tid)}
+                            />
+                          );
+                        })}
+                      </div>
+                      <div>
+                        <span className="fw-semibold d-block mb-1">Modalidad (esta carrera)</span>
+                        {(modalidades || []).map((m) => {
+                          const mid = m.id || m.ID;
+                          if (!mid) return null;
+                          const cod = String(m.codigo || '').toUpperCase();
+                          const disTitular = cod === 'TITULAR' && !si;
+                          return (
+                            <Form.Check
+                              key={mid}
+                              inline
+                              type="radio"
+                              name={`mod-${id}`}
+                              id={`mod-${id}-${mid}`}
+                              label={etiquetaModalidad(m.codigo)}
+                              checked={row.modalidadId === mid}
+                              disabled={disTitular}
+                              title={
+                                disTitular ? 'Titular solo con título habilitante Sí' : ''
+                              }
+                              onChange={() => {
+                                if (!disTitular) setModalidadForCareer(id, mid);
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               );
             })
           )}
         </div>
+        <Form.Text className="text-muted">
+          Por cada carrera indique si tiene título habilitante y la modalidad. Sin título habilitante puede ser provisional
+          o suplente (una u otra, no titular).
+        </Form.Text>
       </Form.Group>
 
       <Button variant="primary" type="submit" className="w-100">
         {data.id ? 'Actualizar' : 'Guardar'}
       </Button>
+
+      <ConfirmChangeEstadoModal
+        show={!!activeFormConfirm}
+        onHide={() => !activeFormSaving && setActiveFormConfirm(null)}
+        kind="docente"
+        itemName={data.name || ''}
+        fromActive={activeFormConfirm ? activeFormConfirm.fromActive : true}
+        toActive={activeFormConfirm ? activeFormConfirm.toActive : true}
+        onConfirm={confirmActiveForm}
+        confirming={activeFormSaving}
+      />
     </Form>
   );
 };

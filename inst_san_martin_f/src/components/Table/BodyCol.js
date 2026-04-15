@@ -6,8 +6,7 @@ import { faPencil, faTrash, faKey, faMagnifyingGlass, faCircleCheck } from '@for
 
 import styles from './Table.module.css';
 
-const BodyCol = ({data, colActions, actions, colNumber}) => {
-
+const BodyCol = ({ data, colActions, actions, colNumber, wide }) => {
   const eventHandler = (e) => {
     if (colActions) {
       colActions(e);
@@ -16,8 +15,16 @@ const BodyCol = ({data, colActions, actions, colNumber}) => {
 
   const isActionsColumn = typeof colActions === 'function';
 
+  const colClass = [
+    colNumber > 0 ? '' : styles.hiddenDiv,
+    wide ? styles.colWide : '',
+    isActionsColumn ? styles.BodyColActions : ''
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <Col className={colNumber > 0 ? '' : styles.hiddenDiv}>
+    <Col xs={isActionsColumn ? 'auto' : undefined} className={colClass}>
       {
         isActionsColumn ?
         <div className={styles.BodyCol}>

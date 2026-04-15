@@ -10,7 +10,8 @@ const ModalTeacher = ({
   data,
   degrees,
   titulosHabilitantes,
-  modalidades
+  modalidades,
+  changeActive
 }) => {
   const eventHandler = (e) => {
     saveEvent(e);
@@ -31,6 +32,7 @@ const ModalTeacher = ({
           titulosHabilitantes={titulosHabilitantes}
           modalidades={modalidades}
           saveData={(e) => eventHandler(e)}
+          changeActive={changeActive}
         />
       </Modal.Body>
     </Modal>

@@ -3,6 +3,7 @@ import { Button, Container, Row, Col } from 'react-bootstrap';
 import ModalDegree from './Modal/ModalDegree';
 import Table from '../../components/Table/Table';
 import Notification from '../../components/Notification/Notification';
+import ConfirmChangeEstadoModal from '../../components/ConfirmChangeEstadoModal/ConfirmChangeEstadoModal';
 
 import { useGlobal } from '../../context/Global/GlobalProvider';
 import { getDegree, addDegree, changeActiveDegree, updateDegree } from '../../context/Global/actions/DegreeActions';
@@ -16,6 +17,8 @@ const Degree = () => {
   const [dataRow, setDataRow] = useState('');
   const [dataDegrees, setDataDegrees] = useState([]);
   const [error, setError] = useState(null);
+  const [estadoConfirm, setEstadoConfirm] = useState(null);
+  const [estadoConfirmLoading, setEstadoConfirmLoading] = useState(false);
 
   const showError = (message, type) => {
     message ?
@@ -80,21 +83,32 @@ const Degree = () => {
     setShow(current => !current);
   };
 
-  const tableEvents = async (e, d) => { 
+  const tableEvents = async (e, d) => {
     if (e === 'edit') {
       setDataRow(d);
-      setShow(current => !current);
+      setShow((current) => !current);
     }
     if (e === 'check') {
-      d.active = !d.active;
-      const result = await changeActiveDegree(globalDispatch, d);
-      buildNotification(result); 
+      const cur = d.active === true;
+      setEstadoConfirm({ row: d, fromActive: cur, toActive: !cur });
     }
-  }
+  };
+
+  const confirmEstadoToggle = async () => {
+    if (!estadoConfirm) return;
+    setEstadoConfirmLoading(true);
+    const item = { ...estadoConfirm.row, active: estadoConfirm.toActive };
+    const result = await changeActiveDegree(globalDispatch, item);
+    buildNotification(result);
+    setEstadoConfirmLoading(false);
+    if (Number(result.code) === 200) {
+      setEstadoConfirm(null);
+    }
+  };
 
   return (
     <React.Fragment>
-      <Container className={styles.container}>
+      <Container fluid className={styles.container}>
         { error }
         <Row>
           <h1>Carreras</h1>
@@ -114,24 +128,33 @@ const Degree = () => {
           </Col>
         </Row>
         <br />  
-        <Row>
-          <Col xs lg="2"></Col>
-          <Col>
+        <Row className={styles.tableRowWrap}>
+          <Col xs={12} className="px-2 px-md-3">
             <Table
               key={'degree'}
               tableEvents={(e, d) => tableEvents(e, d)}
               data={dataDegrees}
               actions={'ec'}
-            /> 
+              wideKeys={[]}
+            />
           </Col>
-          <Col xs lg="2"></Col>
         </Row>
       </Container>
-      <ModalDegree 
+      <ModalDegree
         show={show}
         handleClose={closeDegreeEvent}
         saveEvent={(e) => saveEventHandler(e)}
         data={dataRow || ''}
+      />
+      <ConfirmChangeEstadoModal
+        show={!!estadoConfirm}
+        onHide={() => !estadoConfirmLoading && setEstadoConfirm(null)}
+        kind="carrera"
+        itemName={estadoConfirm && estadoConfirm.row ? estadoConfirm.row.name : ''}
+        fromActive={estadoConfirm ? estadoConfirm.fromActive : true}
+        toActive={estadoConfirm ? estadoConfirm.toActive : true}
+        onConfirm={confirmEstadoToggle}
+        confirming={estadoConfirmLoading}
       />
     </React.Fragment>
   );

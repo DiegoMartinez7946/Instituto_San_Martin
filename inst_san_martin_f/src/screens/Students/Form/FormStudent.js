@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Button } from 'react-bootstrap';
 
+import ConfirmChangeEstadoModal from '../../../components/ConfirmChangeEstadoModal/ConfirmChangeEstadoModal';
 import { NIVELES_ORDENADOS, jerarquiaDeNivel, etiquetaNivel } from '../../../constant/nivelesAcademicos';
 import { validateDNI } from '../../../utils/dni';
 import {
@@ -11,7 +12,7 @@ import {
 
 const degId = (d) => (d && (d.id || d.ID)) || '';
 
-const FormStudent = ({ dataEntry, degrees, saveData }) => {
+const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
 
   const [dniError, setDniError] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -24,8 +25,11 @@ const FormStudent = ({ dataEntry, degrees, saveData }) => {
     dni: '',
     address: '',
     nivelAprobado: '',
-    degreeIds: []
+    degreeIds: [],
+    active: true
   });
+  const [activeFormConfirm, setActiveFormConfirm] = useState(null);
+  const [activeFormSaving, setActiveFormSaving] = useState(false);
 
   useEffect(() => {
     const entry = dataEntry && typeof dataEntry === 'object' ? dataEntry : null;
@@ -37,9 +41,32 @@ const FormStudent = ({ dataEntry, degrees, saveData }) => {
       dni: (entry && entry.dni) || '',
       address: (entry && entry.address) || '',
       nivelAprobado: (entry && entry.nivelAprobado) ? String(entry.nivelAprobado).toLowerCase() : '',
-      degreeIds: entry && Array.isArray(entry.degreeIds) ? [...entry.degreeIds] : []
+      degreeIds: entry && Array.isArray(entry.degreeIds) ? [...entry.degreeIds] : [],
+      active: entry ? entry.active !== false : true
     });
+    setActiveFormConfirm(null);
   }, [dataEntry]);
+
+  const openActiveConfirm = (toActive) => {
+    if (!data.id || !changeActive) return;
+    const from = data.active !== false;
+    if (toActive === from) return;
+    setActiveFormConfirm({ fromActive: from, toActive });
+  };
+
+  const confirmActiveForm = async () => {
+    if (!activeFormConfirm || !data.id || !changeActive) return;
+    setActiveFormSaving(true);
+    const res = await changeActive({ id: data.id, active: activeFormConfirm.toActive });
+    setActiveFormSaving(false);
+    const code = Number(res.code);
+    if (code === 200) {
+      setData((prev) => ({ ...prev, active: activeFormConfirm.toActive }));
+      setActiveFormConfirm(null);
+    } else if (code === 199) {
+      setActiveFormConfirm(null);
+    }
+  };
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -240,6 +267,33 @@ const FormStudent = ({ dataEntry, degrees, saveData }) => {
         </Form.Text>
       </Form.Group>
 
+      {data.id ? (
+        <Form.Group className="mb-3" controlId="studentEstado">
+          <Form.Label>Estado</Form.Label>
+          <div>
+            <Form.Check
+              inline
+              type="radio"
+              id="student-active-si"
+              name="studentEstadoActivo"
+              label="Activo"
+              checked={data.active !== false}
+              onChange={() => openActiveConfirm(true)}
+            />
+            <Form.Check
+              inline
+              type="radio"
+              id="student-active-no"
+              name="studentEstadoActivo"
+              label="Inactivo"
+              checked={data.active === false}
+              onChange={() => openActiveConfirm(false)}
+            />
+          </div>
+          <Form.Text className="text-muted">El cambio requiere confirmación.</Form.Text>
+        </Form.Group>
+      ) : null}
+
       <Form.Group className="mb-3" controlId="studentDegrees">
         <Form.Label>Carreras</Form.Label>
         <div className="border rounded p-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
@@ -270,6 +324,17 @@ const FormStudent = ({ dataEntry, degrees, saveData }) => {
       <Button variant="primary" type="submit" className="w-100">
         {data.id ? 'Actualizar' : 'Guardar'}
       </Button>
+
+      <ConfirmChangeEstadoModal
+        show={!!activeFormConfirm}
+        onHide={() => !activeFormSaving && setActiveFormConfirm(null)}
+        kind="alumno"
+        itemName={data.name || ''}
+        fromActive={activeFormConfirm ? activeFormConfirm.fromActive : true}
+        toActive={activeFormConfirm ? activeFormConfirm.toActive : true}
+        onConfirm={confirmActiveForm}
+        confirming={activeFormSaving}
+      />
     </Form>
   );
 };

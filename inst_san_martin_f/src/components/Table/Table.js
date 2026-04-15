@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Row } from 'react-bootstrap';
 import lodash from 'lodash';
 
@@ -8,7 +8,13 @@ import BodyCol from './BodyCol';
 import styles from './Table.module.css';
 
 
-const Table = ({data, tableEvents, actions}) => {
+const DEFAULT_WIDE_KEYS = ['resumen', 'carreras', 'enseniaen'];
+
+const Table = ({ data, tableEvents, actions, wideKeys = DEFAULT_WIDE_KEYS }) => {
+  const wideSet = useMemo(
+    () => new Set((wideKeys || []).map((k) => String(k).toLowerCase())),
+    [wideKeys]
+  );
 
   const [header, setHeader] = useState(null);
   const [body, setBody] = useState(null);
@@ -25,44 +31,52 @@ const Table = ({data, tableEvents, actions}) => {
       loadHeader();
       loaderBody();
     }
-  }, [dataTable]);
+  }, [dataTable, wideSet]);
 
   const loadHeader = () => {
-    const values = Object.keys(
-      dataTable[0]).map((d, i) => {
-        return <HeaderCol 
-          key={i} 
-          data={lodash.capitalize(d)} 
-          colNumber={i} 
-        />
-      });
-    setHeader([values, <HeaderCol 
-          key={dataTable.length + 1} 
-          data={'Acciones'}
-          colNumber={actions ? Object.keys(dataTable[0]).length : 0}
-        />]);  
+    const keys = Object.keys(dataTable[0]);
+    const values = keys.map((colKey, i) => (
+      <HeaderCol
+        key={colKey}
+        data={lodash.capitalize(colKey)}
+        colNumber={i}
+        wide={wideSet.has(colKey.toLowerCase())}
+      />
+    ));
+    setHeader([
+      values,
+      <HeaderCol
+        key="__acciones__"
+        data="Acciones"
+        colNumber={actions ? keys.length : 0}
+        wide={false}
+        actionsHeader
+      />
+    ]);
   };
 
   const loaderBody = () => {
-    const values = dataTable.map((d, i) => {
-      return <Row key={i}>
-        {Object.values(d).map((x, j) => {
-          return <BodyCol 
-            key={j} 
-            data={typeof x === "boolean" ? x === true ? 'Activo' : 'Inactivo' : x}
-            colNumber={j} 
+    const keys = Object.keys(dataTable[0]);
+    const values = dataTable.map((row, i) => (
+      <Row key={i} className={styles.tableRow}>
+        {keys.map((colKey, j) => (
+          <BodyCol
+            key={colKey}
+            wide={wideSet.has(colKey.toLowerCase())}
+            data={typeof row[colKey] === 'boolean' ? (row[colKey] === true ? 'Activo' : 'Inactivo') : row[colKey]}
+            colNumber={j}
             actions={actions}
           />
-        })}
-        <BodyCol 
-          key={Object.values(dataTable[0]).length + 1} 
-          data={''} 
-          colActions={(e) => eventsHandler(e, d)}
+        ))}
+        <BodyCol
+          key="__actions__"
+          data=""
+          colActions={(e) => eventsHandler(e, row)}
           actions={actions}
-          colNumber={actions ? Object.values(dataTable[0]).length + 1 : 0} 
+          colNumber={actions ? keys.length + 1 : 0}
         />
       </Row>
-    });
+    ));
 
     setBody(values);
   };
@@ -73,7 +87,7 @@ const Table = ({data, tableEvents, actions}) => {
 
   return (
     <div className={styles.Table}>
-      <Row>
+      <Row className={styles.tableRow}>
         {header}
       </Row>
       {body}

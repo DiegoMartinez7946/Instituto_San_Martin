@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 
 import Protected from './utils/Protected';
 import Logout from './utils/Logout';
@@ -27,7 +27,8 @@ const App = () => {
       <Route exact path="/" element={<Home />} />
       <Route exact path="/login" element={<Login/>} />
       <Route exact path="/logout" element={<Logout />} />
-      <Route exact path="/main" element={<Protected><Main/></Protected>} />
+      <Route path="/main" element={<Navigate to="/home" replace />} />
+      <Route path="/home" element={<Protected><Main /></Protected>} />
       <Route exact path="/users" element={<Protected><Users/></Protected>} />
       <Route exact path="/roles" element={<Protected><Roles/></Protected>} />
       <Route exact path="/shift" element={<Protected><Shift/></Protected>} />

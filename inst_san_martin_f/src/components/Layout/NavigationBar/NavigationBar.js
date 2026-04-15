@@ -1,14 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faAngleDown, faAngleRight } from '@fortawesome/free-solid-svg-icons';
+import { faAngleDown, faAngleRight, faHouse } from '@fortawesome/free-solid-svg-icons';
 import lodash from 'lodash';
-import decodeToken from '../../../utils/jwt';
-import { useGlobal } from "./../../../context/Global/GlobalProvider";
+import { decodeTokenFromCookie } from '../../../utils/jwt';
+import { useGlobal } from './../../../context/Global/GlobalProvider';
 
 import styles from './NavigationBar.module.css';
 
 import ToggleButton from '../SideBar/ToggleButton';
+
+const permisoLegible = (type) => {
+  if (!type) return '';
+  const u = String(type).toUpperCase();
+  const map = {
+    ADMINISTRATIVO: 'administrativo',
+    ADMINISTRADOR: 'administrador',
+    ALUMNO: 'alumno'
+  };
+  return map[u] || String(type).toLowerCase();
+};
 
 const NavigationBar = ({ toggleClick }) => {
 
@@ -18,7 +29,8 @@ const NavigationBar = ({ toggleClick }) => {
   const [globalState] = useGlobal();
 
   useEffect(() => {
-    setUser(decodeToken(document.cookie));
+    const decoded = decodeTokenFromCookie();
+    setUser(decoded || {});
     setIcon(<FontAwesomeIcon icon={faAngleDown} />);
   }, [globalState]);
 
@@ -29,28 +41,26 @@ const NavigationBar = ({ toggleClick }) => {
                 <ToggleButton click={toggleClick}/>
             </div>
             <div className={styles.toolbar__logo}>
-                {
-                  lodash.isEmpty(user) ?
-                  <NavLink
-                    to="/"
-                  >
-                    <img 
-                      className={styles.toolbar__logo_img}
-                      src="/logo.png"
-                      alt="fintech"
-                    />
-                  </NavLink> :
-                  <NavLink
-                    to="/main"
-                  >
-                    <img 
-                    className={styles.toolbar__logo_img}
-                    src="/logo.png"
-                    alt="fintech"
-                    />
-                  </NavLink>
-                }
+              <NavLink
+                to={lodash.isEmpty(user) ? '/' : '/home'}
+                className={styles.toolbar__home}
+                title="Inicio"
+              >
+                <FontAwesomeIcon icon={faHouse} className={styles.toolbar__home_icon} aria-hidden />
+                <span className={styles.toolbar__home_label}>home</span>
+              </NavLink>
             </div>
+            {!lodash.isEmpty(user) && user.type ? (
+              <div
+                className={styles.sessionInfo}
+                role="status"
+                aria-live="polite"
+                title="Información de la sesión (solo lectura)"
+              >
+                usuario: <span className={styles.sessionInfo__strong}>{user.email || '—'}</span>{' '}
+                permisos: <span className={styles.sessionInfo__strong}>{permisoLegible(user.type)}</span>
+              </div>
+            ) : null}
             <div className={styles.spacer} />
             <div className={styles.toolbar__navigation_items}>
               {(() => {
