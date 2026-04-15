@@ -1,7 +1,7 @@
 import React from 'react';
 import lodash from 'lodash';
 import { Navigate } from "react-router-dom";
-import { decodeTokenFromCookie, getAuthTokenFromCookie } from './jwt';
+import { decodeTokenFromCookie, getAuthTokenFromCookie, normalizeRoleFromToken } from './jwt';
 
 import { ScreenPermission } from '../constant/constant';
 
@@ -10,7 +10,7 @@ const Protected = ({ children }) => {
   const token = getAuthTokenFromCookie();
   const isLoggedIn = Boolean(token);
   const user = isLoggedIn ? decodeTokenFromCookie() : null;
-  const type = user ? lodash.lowerCase(user.type) : null;
+  const type = user ? lodash.lowerCase(normalizeRoleFromToken(user) || user.type) : null;
 
   switch(type) {
     case 'alumno':

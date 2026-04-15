@@ -2,6 +2,7 @@
 package services
 
 import (
+	"sort"
 	"strings"
 	"time"
 
@@ -55,6 +56,11 @@ func InsertUserService(u models.User) (string, int, error) {
 		return msgSh, codeSh, nil
 	}
 
+	degStored, msgDeg, codeDeg := normalizeUserDegreeIDs(u.DegreeIDHexes, u.UserType)
+	if codeDeg != 0 {
+		return msgDeg, codeDeg, nil
+	}
+
 	u.Password, _ = utils.EncryptPassword(u.Password)
 	row := models.User{
 		Email:     u.Email,
@@ -65,6 +71,7 @@ func InsertUserService(u models.User) (string, int, error) {
 		Address:   u.Address,
 		Phone:     u.Phone,
 		ShiftIDs:  shiftStored,
+		DegreeIDs: degStored,
 		Active:    true,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -113,19 +120,200 @@ func LoginService(u models.User) (models.LoginResponse, bool, error) {
 /***************************************************************/
 /* GetUsersService call the db to get the users */
 func GetUsersService() ([]models.UserListRow, bool, error) {
-	roleType := "ADMINISTRATIVO"
-	if GUserType == "ADMINISTRATIVO" {
-		roleType = "ALUMNO"
-	}
-	if GUserType == "ALUMNO" {
-		roleType = ""
-	}
-	result, code, err := db.GetUsersDB(roleType)
+	users, code, err := db.GetUsersDB("")
 	if code == 400 {
-		return result, false, err
+		return users, false, err
 	}
 
-	return result, true, nil
+	// Docentes y alumnos viven en colecciones propias (teacher / student), no en "user".
+	// Se agregan aquí para un listado único; no son editables con el mismo modal que las cuentas de login.
+	seenEmail := make(map[string]struct{})
+	for _, u := range users {
+		if em := strings.ToLower(strings.TrimSpace(u.Email)); em != "" {
+			seenEmail[em] = struct{}{}
+		}
+	}
+
+	out := make([]models.UserListRow, 0, len(users)+32)
+	for i := range users {
+		out = append(out, users[i])
+	}
+
+	if teachers, ok := db.GetTeachersDB(); ok {
+		for _, t := range teachers {
+			if t == nil {
+				continue
+			}
+			em := strings.ToLower(strings.TrimSpace(t.Email))
+			if em != "" {
+				if _, dup := seenEmail[em]; dup {
+					continue
+				}
+				seenEmail[em] = struct{}{}
+			}
+			degTeacher := make([]string, 0, len(t.Careers))
+			seenDeg := make(map[string]struct{})
+			for _, c := range t.Careers {
+				if c.DegreeID.IsZero() {
+					continue
+				}
+				h := c.DegreeID.Hex()
+				if _, ok := seenDeg[h]; ok {
+					continue
+				}
+				seenDeg[h] = struct{}{}
+				degTeacher = append(degTeacher, h)
+			}
+			if len(degTeacher) == 0 && len(t.LegacyDegreeIDs) > 0 {
+				for _, d := range t.LegacyDegreeIDs {
+					if d.IsZero() {
+						continue
+					}
+					h := d.Hex()
+					if _, ok := seenDeg[h]; ok {
+						continue
+					}
+					seenDeg[h] = struct{}{}
+					degTeacher = append(degTeacher, h)
+				}
+			}
+			out = append(out, models.UserListRow{
+				ID:        "teacher:" + t.ID.Hex(),
+				Email:     t.Email,
+				Role:      "DOCENTE",
+				Name:      t.Name,
+				DNI:       t.DNI,
+				Address:   t.Address,
+				Phone:     t.Phone,
+				DegreeIDs: degTeacher,
+				Active:    t.Active,
+				Source:    "teacher",
+			})
+		}
+	}
+
+	allStudents, stOk := db.GetStudentsDB()
+	if stOk {
+		for _, s := range allStudents {
+			if s == nil {
+				continue
+			}
+			em := strings.ToLower(strings.TrimSpace(s.Email))
+			if em != "" {
+				if _, dup := seenEmail[em]; dup {
+					continue
+				}
+				seenEmail[em] = struct{}{}
+			}
+			degStu := make([]string, 0, len(s.DegreeIDs))
+			for _, d := range s.DegreeIDs {
+				if d.IsZero() {
+					continue
+				}
+				degStu = append(degStu, d.Hex())
+			}
+			out = append(out, models.UserListRow{
+				ID:        "student:" + s.ID.Hex(),
+				Email:     s.Email,
+				Role:      "ALUMNO",
+				Name:      s.Name,
+				DNI:       s.DNI,
+				Address:   s.Address,
+				Phone:     s.Phone,
+				DegreeIDs: degStu,
+				Active:    s.Active,
+				Modalidad: s.Modalidad,
+				Condicion: s.Condicion,
+				Source:    "student",
+			})
+		}
+	}
+
+	stByEmail := make(map[string]*models.Student)
+	for _, s := range allStudents {
+		if s == nil {
+			continue
+		}
+		em := strings.ToLower(strings.TrimSpace(s.Email))
+		if em == "" {
+			continue
+		}
+		stByEmail[em] = s
+	}
+	mergeAlumnoUserRowFromStudent := func(row *models.UserListRow, st *models.Student) {
+		row.StudentLinked = true
+		if st != nil && !st.ID.IsZero() {
+			row.StudentRecordID = st.ID.Hex()
+		}
+		row.Modalidad = st.Modalidad
+		row.Condicion = st.Condicion
+		if len(st.DegreeIDs) > 0 {
+			degHex := make([]string, 0, len(st.DegreeIDs))
+			for _, d := range st.DegreeIDs {
+				if d.IsZero() {
+					continue
+				}
+				degHex = append(degHex, d.Hex())
+			}
+			row.DegreeIDs = degHex
+		}
+	}
+
+	for i := range out {
+		if out[i].Source != "" {
+			continue
+		}
+		if strings.ToUpper(strings.TrimSpace(out[i].Role)) != "ALUMNO" {
+			continue
+		}
+		em := strings.ToLower(strings.TrimSpace(out[i].Email))
+		if em == "" {
+			continue
+		}
+		st, ok := stByEmail[em]
+		if !ok || st == nil {
+			continue
+		}
+		mergeAlumnoUserRowFromStudent(&out[i], st)
+	}
+
+	stByDNI := make(map[string]*models.Student)
+	for _, s := range allStudents {
+		if s == nil {
+			continue
+		}
+		d := strings.TrimSpace(s.DNI)
+		if d == "" {
+			continue
+		}
+		stByDNI[d] = s
+	}
+	for i := range out {
+		if out[i].Source != "" {
+			continue
+		}
+		if strings.ToUpper(strings.TrimSpace(out[i].Role)) != "ALUMNO" {
+			continue
+		}
+		if out[i].StudentLinked {
+			continue
+		}
+		d := strings.TrimSpace(out[i].DNI)
+		if d == "" {
+			continue
+		}
+		st, ok := stByDNI[d]
+		if !ok || st == nil {
+			continue
+		}
+		mergeAlumnoUserRowFromStudent(&out[i], st)
+	}
+
+	sort.SliceStable(out, func(i, j int) bool {
+		return strings.ToLower(strings.TrimSpace(out[i].Name)) < strings.ToLower(strings.TrimSpace(out[j].Name))
+	})
+
+	return out, true, nil
 }
 
 func mergeUserShiftSlice(ids []string, legacy string) []string {
@@ -166,9 +354,79 @@ func normalizeUserShiftIDs(ids []string) (stored []string, msg string, code int)
 	return out, "", 0
 }
 
+/* normalizeUserDegreeIDs carreras para ALUMNO/DOCENTE (como máximo una; opcional vacío) */
+func normalizeUserDegreeIDs(hexes []string, roleTypeCode string) ([]primitive.ObjectID, string, int) {
+	roleUpper := strings.ToUpper(strings.TrimSpace(roleTypeCode))
+	if roleUpper != "ALUMNO" && roleUpper != "DOCENTE" {
+		return nil, "", 0
+	}
+	out := make([]primitive.ObjectID, 0, 1)
+	for _, raw := range hexes {
+		h := strings.TrimSpace(raw)
+		if h == "" {
+			continue
+		}
+		oid, err := primitive.ObjectIDFromHex(h)
+		if err != nil {
+			return nil, "Id de carrera invalido", 199
+		}
+		if !db.DegreeDocumentExists(oid) {
+			return nil, "La carrera seleccionada no es valida", 199
+		}
+		out = append(out, oid)
+	}
+	if len(out) > 1 {
+		return nil, "Seleccione solo una carrera", 199
+	}
+	return out, "", 0
+}
+
+/* resolveStudentForAlumnoSync localiza la ficha: prioriza studentRecordId (hex) si coincide email o DNI con el formulario. */
+func resolveStudentForAlumnoSync(email, dni, studentRecordIDHex string) (models.Student, bool) {
+	email = strings.TrimSpace(email)
+	dni = strings.TrimSpace(dni)
+	if h := strings.TrimSpace(studentRecordIDHex); h != "" {
+		oid, err := primitive.ObjectIDFromHex(h)
+		if err == nil && !oid.IsZero() {
+			st, ok := db.FindStudentByIDDB(oid)
+			if ok {
+				em := strings.ToLower(strings.TrimSpace(st.Email))
+				uem := strings.ToLower(email)
+				sdni := strings.TrimSpace(st.DNI)
+				udni := dni
+				if (em != "" && uem != "" && em == uem) || (sdni != "" && udni != "" && sdni == udni) {
+					return st, true
+				}
+			}
+		}
+	}
+	return db.FindStudentForUserSync(email, dni)
+}
+
+/* Si existe ficha student para el mismo email/DNI (o id explícito), valida y normaliza modalidad/condición alineada al usuario (activo/inactivo). */
+func validateAndNormalizeAlumnoStudentForUserUpdate(userID primitive.ObjectID, email, dni string, degStored []primitive.ObjectID, modalidadIn, condicionIn, studentRecordIDHex string) (msg string, code int, studentID primitive.ObjectID, modalidadOut, condicionOut string, shouldSync bool) {
+	st, found := resolveStudentForAlumnoSync(email, dni, studentRecordIDHex)
+	if !found {
+		return "", 0, primitive.NilObjectID, "", "", false
+	}
+	u, okU, errU := db.FindUserByIDDB(userID)
+	if errU != nil || !okU {
+		return "", 0, primitive.NilObjectID, "", "", false
+	}
+	s := st
+	s.DegreeIDs = degStored
+	s.Modalidad = modalidadIn
+	s.Condicion = condicionIn
+	s.Active = u.Active
+	if m, okVal := validateStudentExtraModeFields(&s); !okVal {
+		return m, 199, primitive.NilObjectID, "", "", false
+	}
+	return "", 0, st.ID, s.Modalidad, s.Condicion, true
+}
+
 /***************************************************************/
 /* UpdateUserService actualiza perfil de usuario de sistema */
-func UpdateUserService(idHex string, name, dni, address, phone, email, password, userTypeCode string, shiftIDs []string) (string, int, error) {
+func UpdateUserService(idHex string, name, dni, address, phone, email, password, userTypeCode string, shiftIDs []string, degreeHexes []string, modalidadIn, condicionIn, studentRecordIDHex string) (string, int, error) {
 	id, err := primitive.ObjectIDFromHex(strings.TrimSpace(idHex))
 	if err != nil {
 		return "Id de usuario invalido", 400, nil
@@ -228,7 +486,45 @@ func UpdateUserService(idHex string, name, dni, address, phone, email, password,
 		return msgSh, codeSh, nil
 	}
 
-	okDB, err := db.UpdateUserProfileDB(id, name, dni, address, phone, email, shiftStored)
+	effectiveRole := strings.ToUpper(strings.TrimSpace(userTypeCode))
+	if effectiveRole == "" {
+		uDB, okU, errU := db.FindUserByIDDB(id)
+		if errU == nil && okU && strings.TrimSpace(uDB.UserType) != "" {
+			roleDoc, errR := db.GetRoleDB(strings.TrimSpace(uDB.UserType))
+			if errR == nil && roleDoc.Type != "" {
+				effectiveRole = strings.ToUpper(strings.TrimSpace(roleDoc.Type))
+			}
+		}
+	}
+
+	degStored, msgDeg, codeDeg := normalizeUserDegreeIDs(degreeHexes, effectiveRole)
+	if codeDeg != 0 {
+		return msgDeg, codeDeg, nil
+	}
+	if effectiveRole != "ALUMNO" && effectiveRole != "DOCENTE" {
+		degStored = []primitive.ObjectID{}
+	}
+	if degStored == nil {
+		degStored = []primitive.ObjectID{}
+	}
+
+	var syncStudentID primitive.ObjectID
+	var syncModalidad, syncCondicion string
+	doSyncStudent := false
+	if effectiveRole == "ALUMNO" {
+		msgSt, codeSt, sid, modOut, condOut, sync := validateAndNormalizeAlumnoStudentForUserUpdate(id, email, dni, degStored, modalidadIn, condicionIn, studentRecordIDHex)
+		if codeSt != 0 {
+			return msgSt, codeSt, nil
+		}
+		if sync {
+			syncStudentID = sid
+			syncModalidad = modOut
+			syncCondicion = condOut
+			doSyncStudent = true
+		}
+	}
+
+	okDB, err := db.UpdateUserProfileDB(id, name, dni, address, phone, email, shiftStored, degStored)
 	if err != nil || !okDB {
 		return "No se pudo actualizar el usuario", 400, err
 	}
@@ -238,6 +534,13 @@ func UpdateUserService(idHex string, name, dni, address, phone, email, password,
 		_, err = db.UpdateUserPasswordByIDDB(id, hashed)
 		if err != nil {
 			return "Perfil actualizado pero fallo el cambio de password", 400, err
+		}
+	}
+
+	if doSyncStudent && !syncStudentID.IsZero() {
+		_, errSync := db.UpdateStudentEnrollmentFieldsDB(syncStudentID, degStored, syncModalidad, syncCondicion)
+		if errSync != nil {
+			return "Usuario actualizado pero no se pudo sincronizar la ficha de alumno", 400, errSync
 		}
 	}
 

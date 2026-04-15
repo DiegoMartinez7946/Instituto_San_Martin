@@ -232,16 +232,21 @@ func mergeUserShiftSliceFromBody(ids []string, legacy string) []string {
 }
 
 type userUpdateBody struct {
-	ID       string   `json:"id"`
-	Name     string   `json:"name"`
-	DNI      string   `json:"dni"`
-	Address  string   `json:"address"`
-	Phone    string   `json:"phone"`
-	Email    string   `json:"email"`
-	Password string   `json:"password"`
-	UserType string   `json:"userType"`
-	ShiftID  string   `json:"shiftId"`   // legacy: un solo id
-	ShiftIDs []string `json:"shiftIds"` // preferido
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	DNI       string   `json:"dni"`
+	Address   string   `json:"address"`
+	Phone     string   `json:"phone"`
+	Email     string   `json:"email"`
+	Password  string   `json:"password"`
+	UserType  string   `json:"userType"`
+	ShiftID   string   `json:"shiftId"`   // legacy: un solo id
+	ShiftIDs  []string `json:"shiftIds"` // preferido
+	DegreeIDs []string `json:"degreeIds"`
+	Modalidad string   `json:"modalidad"`
+	Condicion string   `json:"condicion"`
+	// Hex ObjectId de la ficha student cuando el listado la vinculó (más fiable que solo email).
+	StudentRecordID string `json:"studentRecordId"`
 }
 
 /* UpdateUser PUT /user */
@@ -252,7 +257,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	shiftIDs := mergeUserShiftSliceFromBody(body.ShiftIDs, body.ShiftID)
-	msg, code, err := services.UpdateUserService(body.ID, body.Name, body.DNI, body.Address, body.Phone, body.Email, body.Password, body.UserType, shiftIDs)
+	msg, code, err := services.UpdateUserService(body.ID, body.Name, body.DNI, body.Address, body.Phone, body.Email, body.Password, body.UserType, shiftIDs, body.DegreeIDs, body.Modalidad, body.Condicion, body.StudentRecordID)
 	if err != nil || code != 200 {
 		_ = json.NewEncoder(w).Encode(models.Response{Message: msg, Code: code, Ok: false})
 		return

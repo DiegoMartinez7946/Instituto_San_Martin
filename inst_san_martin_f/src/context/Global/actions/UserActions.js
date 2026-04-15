@@ -91,6 +91,10 @@ export const addUser = async (dispatch, item) => {
       ? [String(item.shiftId).trim()].filter(Boolean)
       : [];
 
+  const degreeIds = Array.isArray(item.degreeIds)
+    ? item.degreeIds.map((x) => String(x).trim()).filter(Boolean)
+    : [];
+
   const result = await clientAxios.post('/user', {
     email: item.email,
     password: item.password,
@@ -99,7 +103,8 @@ export const addUser = async (dispatch, item) => {
     dni: item.dni,
     address: item.address || '',
     phone: item.phone || '',
-    shiftIds
+    shiftIds,
+    degreeIds
   }, options);
 
   return result.data;
@@ -119,6 +124,10 @@ export const updateUser = async (dispatch, item) => {
       ? [String(item.shiftId).trim()].filter(Boolean)
       : [];
 
+  const degreeIds = Array.isArray(item.degreeIds)
+    ? item.degreeIds.map((x) => String(x).trim()).filter(Boolean)
+    : [];
+
   const result = await clientAxios.put('/user', {
     id: item.id,
     email: item.email,
@@ -128,7 +137,11 @@ export const updateUser = async (dispatch, item) => {
     phone: item.phone || '',
     userType: item.userType || '',
     password: item.password || '',
-    shiftIds
+    shiftIds,
+    degreeIds,
+    modalidad: item.modalidad || '',
+    condicion: item.condicion || '',
+    studentRecordId: item.studentRecordId != null ? String(item.studentRecordId).trim() : ''
   }, options);
 
   return result.data;

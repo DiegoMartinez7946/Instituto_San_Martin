@@ -50,6 +50,40 @@ func validateStudentDegreesEnrollment(s models.Student) (string, bool) {
 	return "", true
 }
 
+func normalizeStudentModalidad(v string) string {
+	u := strings.ToUpper(strings.TrimSpace(v))
+	if u == "PRESENCIAL" || u == "REMOTO" {
+		return u
+	}
+	return ""
+}
+
+func normalizeStudentCondicion(v string) string {
+	u := strings.ToUpper(strings.TrimSpace(v))
+	if u == "REGULAR" || u == "LIBRE" {
+		return u
+	}
+	return ""
+}
+
+func validateStudentExtraModeFields(s *models.Student) (string, bool) {
+	s.Modalidad = normalizeStudentModalidad(s.Modalidad)
+	s.Condicion = normalizeStudentCondicion(s.Condicion)
+	if !s.Active {
+		// Regla pedida: al estar inactivo, los campos quedan en blanco.
+		s.Modalidad = ""
+		s.Condicion = ""
+		return "", true
+	}
+	if s.Modalidad == "" {
+		return "Debe indicar si el alumno es presencial o remoto", false
+	}
+	if s.Condicion == "" {
+		return "Debe indicar si el alumno es regular o libre", false
+	}
+	return "", true
+}
+
 /* InsertStudentService */
 func InsertStudentService(s models.Student) (string, int, error) {
 	if len(s.Name) == 0 || len(s.DNI) == 0 {
@@ -74,6 +108,9 @@ func InsertStudentService(s models.Student) (string, int, error) {
 	s.NivelAprobado = strings.ToLower(strings.TrimSpace(s.NivelAprobado))
 	msg, ok := validateStudentDegreesEnrollment(s)
 	if !ok {
+		return msg, 199, nil
+	}
+	if msg, ok := validateStudentExtraModeFields(&s); !ok {
 		return msg, 199, nil
 	}
 
@@ -117,6 +154,9 @@ func UpdateStudentService(s models.Student) (string, int, error) {
 	if !ok {
 		return msg, 199, nil
 	}
+	if msg, ok := validateStudentExtraModeFields(&s); !ok {
+		return msg, 199, nil
+	}
 
 	s.UpdatedAt = time.Now()
 	okDB, err := db.UpdateStudentDB(s)
@@ -134,6 +174,9 @@ func UpdateStudentActiveService(id primitive.ObjectID, active bool) (string, int
 	okDB, err := db.UpdateStudentActiveDB(id, active)
 	if err != nil || !okDB {
 		return "No se pudo actualizar el estado del alumno", 400, err
+	}
+	if !active {
+		_, _ = db.ClearStudentModeFieldsDB(id)
 	}
 	return "El estado del alumno se actualizo correctamente", 200, nil
 }

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Button } from 'react-bootstrap';
+import { Form, Button, InputGroup } from 'react-bootstrap';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
 import ConfirmChangeEstadoModal from '../../../components/ConfirmChangeEstadoModal/ConfirmChangeEstadoModal';
 import FormEditLockBanner from '../../../components/FormEditLockBanner/FormEditLockBanner';
@@ -24,7 +26,9 @@ const shiftIdsContain = (shiftIds, shift) => {
   return (shiftIds || []).some((x) => String(x).trim().toLowerCase() === h);
 };
 
-const FormUser = ({ dataEntry, roles, shifts, saveData, changeActive }) => {
+const degRowId = (d) => (d && (d.id || d.ID)) || '';
+
+const FormUser = ({ dataEntry, roles, shifts, degrees, saveData, changeActive }) => {
   const [emailError, setEmailError] = useState('');
   const [dniError, setDniError] = useState('');
   const [phoneError, setPhoneError] = useState('');
@@ -36,18 +40,24 @@ const FormUser = ({ dataEntry, roles, shifts, saveData, changeActive }) => {
     phone: '',
     dni: '',
     address: '',
-    userType: 'ADMINISTRATIVO',
+    userType: '',
     shiftIds: [],
+    degreeId: '',
+    modalidad: '',
+    condicion: '',
+    studentRecordId: '',
     password: '',
     active: true
   });
   const [activeFormConfirm, setActiveFormConfirm] = useState(null);
   const [activeFormSaving, setActiveFormSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const lockEntityKey = (dataEntry && dataEntry.id) || '';
   const { readOnly, unlocked, setUnlocked, armLockAfterSave } = useFormEditLock(lockEntityKey, dataEntry);
 
   useEffect(() => {
+    setShowPassword(false);
     const entry = dataEntry && typeof dataEntry === 'object' ? dataEntry : null;
     if (!entry || !entry.id) {
       setData({
@@ -57,14 +67,25 @@ const FormUser = ({ dataEntry, roles, shifts, saveData, changeActive }) => {
         phone: '',
         dni: '',
         address: '',
-        userType: 'ADMINISTRATIVO',
+        userType: '',
         shiftIds: [],
+        degreeId: '',
+        modalidad: '',
+        condicion: '',
+        studentRecordId: '',
         password: '',
         active: true
       });
       setActiveFormConfirm(null);
       return;
     }
+    const firstDegree =
+      Array.isArray(entry.degreeIds) && entry.degreeIds.length
+        ? String(entry.degreeIds[0]).trim()
+        : '';
+    const isActive = entry.active !== false;
+    const mRaw = entry.modalidad != null && entry.modalidad !== '' ? entry.modalidad : entry.Modalidad;
+    const cRaw = entry.condicion != null && entry.condicion !== '' ? entry.condicion : entry.Condicion;
     setData({
       id: entry.id,
       name: entry.name || '',
@@ -72,14 +93,18 @@ const FormUser = ({ dataEntry, roles, shifts, saveData, changeActive }) => {
       phone: sanitizeTelefonoInput(entry.phone || ''),
       dni: entry.dni || '',
       address: entry.address || '',
-      userType: (entry.role || 'ADMINISTRATIVO').toString().toUpperCase(),
+      userType: (entry.role || '').toString().toUpperCase(),
       shiftIds: Array.isArray(entry.shiftIds)
         ? entry.shiftIds.map((x) => String(x).trim()).filter(Boolean)
         : entry.shiftId
           ? [String(entry.shiftId).trim()].filter(Boolean)
           : [],
+      degreeId: firstDegree,
+      modalidad: isActive ? String(mRaw != null ? mRaw : '').trim().toUpperCase() : '',
+      condicion: isActive ? String(cRaw != null ? cRaw : '').trim().toUpperCase() : '',
+      studentRecordId: entry.studentRecordId ? String(entry.studentRecordId).trim() : '',
       password: '',
-      active: entry.active !== false
+      active: isActive
     });
     setActiveFormConfirm(null);
   }, [dataEntry]);
@@ -98,7 +123,12 @@ const FormUser = ({ dataEntry, roles, shifts, saveData, changeActive }) => {
     setActiveFormSaving(false);
     const code = Number(res.code);
     if (code === 200) {
-      setData((prev) => ({ ...prev, active: activeFormConfirm.toActive }));
+      setData((prev) => ({
+        ...prev,
+        active: activeFormConfirm.toActive,
+        modalidad: activeFormConfirm.toActive ? prev.modalidad : '',
+        condicion: activeFormConfirm.toActive ? prev.condicion : ''
+      }));
       setActiveFormConfirm(null);
     } else if (code === 199) {
       setActiveFormConfirm(null);
@@ -106,10 +136,27 @@ const FormUser = ({ dataEntry, roles, shifts, saveData, changeActive }) => {
   };
 
   const handleInputChange = (event) => {
-    const { name, value } = event.target;
+    const target = event.currentTarget || event.target;
+    const name = target.name;
+    const value = target.value;
     if (name === 'email') setEmailError('');
     if (name === 'dni') setDniError('');
+    if (name === 'userType') {
+      const upper = String(value).toUpperCase();
+      setData((prev) => ({
+        ...prev,
+        userType: value,
+        degreeId: upper === 'ALUMNO' || upper === 'DOCENTE' ? prev.degreeId : '',
+        modalidad: upper === 'ALUMNO' ? prev.modalidad : '',
+        condicion: upper === 'ALUMNO' ? prev.condicion : ''
+      }));
+      return;
+    }
     setData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleDegreeChange = (event) => {
+    setData((prev) => ({ ...prev, degreeId: event.target.value }));
   };
 
   const toggleShiftId = (shift) => {
@@ -164,6 +211,30 @@ const FormUser = ({ dataEntry, roles, shifts, saveData, changeActive }) => {
       return;
     }
 
+    const roleUpper = String(data.userType).toUpperCase();
+    const degreeIds =
+      roleUpper === 'ALUMNO' || roleUpper === 'DOCENTE'
+        ? data.degreeId
+          ? [String(data.degreeId).trim()]
+          : []
+        : [];
+
+    const hasStudentFicha = !!(
+      (dataEntry && dataEntry.studentLinked) ||
+      (data.studentRecordId && String(data.studentRecordId).trim())
+    );
+    if (
+      roleUpper === 'ALUMNO' &&
+      data.active !== false &&
+      hasStudentFicha &&
+      (!String(data.modalidad || '').trim() || !String(data.condicion || '').trim())
+    ) {
+      setFormError(
+        'Indique modalidad (presencial/remoto) y condición (regular/libre) para la ficha del alumno.'
+      );
+      return;
+    }
+
     const payload = {
       id: data.id,
       name: String(data.name).trim(),
@@ -173,6 +244,10 @@ const FormUser = ({ dataEntry, roles, shifts, saveData, changeActive }) => {
       address: String(data.address || '').trim(),
       userType: String(data.userType).toUpperCase(),
       shiftIds: (data.shiftIds || []).map((x) => String(x).trim()).filter(Boolean),
+      degreeIds,
+      modalidad: data.active === false ? '' : String(data.modalidad || '').toUpperCase(),
+      condicion: data.active === false ? '' : String(data.condicion || '').toUpperCase(),
+      studentRecordId: String(data.studentRecordId || '').trim(),
       password: data.password
     };
 
@@ -187,8 +262,12 @@ const FormUser = ({ dataEntry, roles, shifts, saveData, changeActive }) => {
           phone: '',
           dni: '',
           address: '',
-          userType: 'ADMINISTRATIVO',
+          userType: '',
           shiftIds: [],
+          degreeId: '',
+          modalidad: '',
+          condicion: '',
+          studentRecordId: '',
           password: '',
           active: true
         });
@@ -200,6 +279,9 @@ const FormUser = ({ dataEntry, roles, shifts, saveData, changeActive }) => {
 
   const roleOptions = (roles || []).filter((r) => r && r.type);
   const shiftOptions = (shifts || []).filter((s) => s && shiftRowHex(s));
+  const degreeOptions = (degrees || []).filter((d) => d && degRowId(d) && d.active !== false);
+  const roleUpper = String(data.userType || '').toUpperCase();
+  const showInscriptoCarrera = roleUpper === 'ALUMNO' || roleUpper === 'DOCENTE';
 
   return (
     <Form onSubmit={sendData}>
@@ -300,6 +382,7 @@ const FormUser = ({ dataEntry, roles, shifts, saveData, changeActive }) => {
               required
               disabled={readOnly}
             >
+              <option value="">Seleccione un rol</option>
               {roleOptions.length === 0 ? (
                 <option value="">Sin roles cargados</option>
               ) : (
@@ -341,6 +424,110 @@ const FormUser = ({ dataEntry, roles, shifts, saveData, changeActive }) => {
               Opcional. Los turnos se administran en Administración → Turnos de cursado.
             </Form.Text>
           </Form.Group>
+
+          {showInscriptoCarrera ? (
+            <Form.Group className="mt-3" controlId="userDegrees">
+              <Form.Label className="small text-muted mb-1">Inscripto en</Form.Label>
+              <Form.Text className="text-muted d-block small mb-2">
+                {roleUpper === 'DOCENTE'
+                  ? 'Carrera en la que se desempeña como docente.'
+                  : 'Carrera que cursa el alumno.'}
+              </Form.Text>
+              <div className="d-flex flex-column gap-2">
+                <Form.Check
+                  type="radio"
+                  id="user-degree-none"
+                  name="degreeId"
+                  label="Sin carrera asignada"
+                  value=""
+                  checked={!data.degreeId}
+                  onChange={handleDegreeChange}
+                  disabled={readOnly}
+                />
+                {degreeOptions.length === 0 ? (
+                  <span className="text-muted small">No hay carreras activas cargadas.</span>
+                ) : (
+                  degreeOptions.map((d) => {
+                    const hid = degRowId(d);
+                    if (!hid) return null;
+                    return (
+                      <Form.Check
+                        key={hid}
+                        type="radio"
+                        id={`user-degree-${hid}`}
+                        name="degreeId"
+                        label={d.name || hid}
+                        value={hid}
+                        checked={String(data.degreeId) === String(hid)}
+                        onChange={handleDegreeChange}
+                        disabled={readOnly}
+                      />
+                    );
+                  })
+                )}
+              </div>
+              <Form.Text className="text-muted">Las carreras se administran en Administración → Carreras.</Form.Text>
+            </Form.Group>
+          ) : null}
+
+          {roleUpper === 'ALUMNO' ? (
+            <Form.Group className="mt-3" controlId="userModalidadCondicion">
+              <Form.Label className="small text-muted mb-1">Ficha académica del alumno</Form.Label>
+              <div className="border rounded p-2 mt-1">
+                <Form.Label className="small text-muted mb-1">Modalidad</Form.Label>
+                <Form.Check
+                  type="radio"
+                  id="user-modalidad-presencial"
+                  name="modalidad"
+                  value="PRESENCIAL"
+                  label="Presencial"
+                  checked={data.modalidad === 'PRESENCIAL'}
+                  onChange={() =>
+                    setData((prev) => ({ ...prev, modalidad: 'PRESENCIAL' }))
+                  }
+                  disabled={readOnly || data.active === false}
+                />
+                <Form.Check
+                  type="radio"
+                  id="user-modalidad-remoto"
+                  name="modalidad"
+                  value="REMOTO"
+                  label="Remoto"
+                  checked={data.modalidad === 'REMOTO'}
+                  onChange={() => setData((prev) => ({ ...prev, modalidad: 'REMOTO' }))}
+                  disabled={readOnly || data.active === false}
+                />
+                <hr className="my-2" />
+                <Form.Label className="small text-muted mb-1">Condición académica</Form.Label>
+                <Form.Check
+                  type="radio"
+                  id="user-condicion-regular"
+                  name="condicion"
+                  value="REGULAR"
+                  label="Regular"
+                  checked={data.condicion === 'REGULAR'}
+                  onChange={() =>
+                    setData((prev) => ({ ...prev, condicion: 'REGULAR' }))
+                  }
+                  disabled={readOnly || data.active === false}
+                />
+                <Form.Check
+                  type="radio"
+                  id="user-condicion-libre"
+                  name="condicion"
+                  value="LIBRE"
+                  label="Libre"
+                  checked={data.condicion === 'LIBRE'}
+                  onChange={() => setData((prev) => ({ ...prev, condicion: 'LIBRE' }))}
+                  disabled={readOnly || data.active === false}
+                />
+              </div>
+              <Form.Text className="text-muted">
+                Se guardan en la ficha del alumno (colección alumnos). Si hay ficha vinculada por email, son obligatorios
+                mientras el usuario esté activo.
+              </Form.Text>
+            </Form.Group>
+          ) : null}
         </div>
       </Form.Group>
 
@@ -375,15 +562,28 @@ const FormUser = ({ dataEntry, roles, shifts, saveData, changeActive }) => {
 
       <Form.Group className="mb-3" controlId="userPassword">
         <Form.Label>{data.id ? 'Nueva contraseña (opcional)' : 'Contraseña'}</Form.Label>
-        <Form.Control
-          type="password"
-          name="password"
-          autoComplete="new-password"
-          placeholder={data.id ? 'Vacío = no cambiar' : 'Mínimo 6 caracteres'}
-          onChange={handleInputChange}
-          value={data.password}
-          readOnly={readOnly}
-        />
+        <InputGroup>
+          <Form.Control
+            type={showPassword ? 'text' : 'password'}
+            name="password"
+            autoComplete="new-password"
+            placeholder={data.id ? 'Vacío = no cambiar' : 'Mínimo 6 caracteres'}
+            onChange={handleInputChange}
+            value={data.password}
+            readOnly={readOnly}
+          />
+          <Button
+            variant="outline-secondary"
+            type="button"
+            title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            onClick={() => setShowPassword((v) => !v)}
+            tabIndex={-1}
+            disabled={readOnly}
+          >
+            <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
+          </Button>
+        </InputGroup>
       </Form.Group>
 
       <Button variant="primary" type="submit" className="w-100" disabled={readOnly}>

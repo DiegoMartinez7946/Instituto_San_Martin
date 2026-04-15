@@ -25,6 +25,13 @@ const safeDecode = (tokenString) => {
 /** Decodifica el JWT guardado en la cookie de sesión. */
 export const decodeTokenFromCookie = () => safeDecode(getAuthTokenFromCookie());
 
+/** Rol en mayúsculas para comparar con ADMINISTRADOR / ADMINISTRATIVO / ALUMNO (JWT puede variar mayúsculas). */
+export const normalizeRoleFromToken = (decoded) => {
+  if (!decoded || typeof decoded !== 'object') return '';
+  const raw = decoded.type != null ? decoded.type : decoded.Type != null ? decoded.Type : decoded.role != null ? decoded.role : decoded.Role;
+  return raw != null && String(raw).trim() !== '' ? String(raw).trim().toUpperCase() : '';
+};
+
 const decodeToken = (tokenString) => safeDecode(tokenString);
 
 export default decodeToken;

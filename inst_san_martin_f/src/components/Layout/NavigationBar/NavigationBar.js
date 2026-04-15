@@ -3,8 +3,9 @@ import { NavLink } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faAngleDown, faAngleRight, faHouse } from '@fortawesome/free-solid-svg-icons';
 import lodash from 'lodash';
-import { decodeTokenFromCookie } from '../../../utils/jwt';
+import { decodeTokenFromCookie, normalizeRoleFromToken } from '../../../utils/jwt';
 import { useGlobal } from './../../../context/Global/GlobalProvider';
+import { getArgentinaPortalTime } from '../../../context/Global/actions/TimeActions';
 
 import styles from './NavigationBar.module.css';
 
@@ -26,13 +27,23 @@ const NavigationBar = ({ toggleClick }) => {
   const [user, setUser] = useState('');
   const [icon, setIcon] = useState(null);
  
-  const [globalState] = useGlobal();
+  const [globalState, dispatch] = useGlobal();
 
   useEffect(() => {
     const decoded = decodeTokenFromCookie();
     setUser(decoded || {});
     setIcon(<FontAwesomeIcon icon={faAngleDown} />);
   }, [globalState]);
+
+  useEffect(() => {
+    const token = document.cookie.replace("token=", "");
+    if (!token) {
+      return undefined;
+    }
+    getArgentinaPortalTime(dispatch);
+    const id = setInterval(() => getArgentinaPortalTime(dispatch), 30000);
+    return () => clearInterval(id);
+  }, [dispatch, globalState.userLogin]);
 
   return (
     <header className={styles.toolbar}>
@@ -50,7 +61,7 @@ const NavigationBar = ({ toggleClick }) => {
                 <span className={styles.toolbar__home_label}>home</span>
               </NavLink>
             </div>
-            {!lodash.isEmpty(user) && user.type ? (
+            {!lodash.isEmpty(user) && normalizeRoleFromToken(user) ? (
               <div
                 className={styles.sessionInfo}
                 role="status"
@@ -58,13 +69,27 @@ const NavigationBar = ({ toggleClick }) => {
                 title="Información de la sesión (solo lectura)"
               >
                 usuario: <span className={styles.sessionInfo__strong}>{user.email || '—'}</span>{' '}
-                permisos: <span className={styles.sessionInfo__strong}>{permisoLegible(user.type)}</span>
+                permisos: <span className={styles.sessionInfo__strong}>{permisoLegible(normalizeRoleFromToken(user))}</span>
+              </div>
+            ) : null}
+            {!lodash.isEmpty(user) && globalState.portalTime ? (
+              <div
+                className={styles.argClock}
+                role="timer"
+                aria-live="polite"
+                title="Hora de referencia (Argentina, America/Argentina/Buenos_Aires)"
+              >
+                <span className={styles.argClock__time}>{globalState.portalTime.hora}</span>
+                <span className={styles.argClock__meta}>
+                  {globalState.portalTime.dia} · {globalState.portalTime.fecha}
+                </span>
               </div>
             ) : null}
             <div className={styles.spacer} />
             <div className={styles.toolbar__navigation_items}>
               {(() => {
-                switch(user.type) {
+                const role = normalizeRoleFromToken(user);
+                switch (role) {
                   case "ALUMNO": return (
                     <ul>
                       <li>
@@ -86,25 +111,41 @@ const NavigationBar = ({ toggleClick }) => {
                   case "ADMINISTRATIVO": return (
                     <ul>
                       <li>
-                        <NavLink
-                          className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
-                          to="/students">
-                          Alumnos
-                        </NavLink>
-                      </li>
-                      <li>
-                        <NavLink
-                          className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
-                          to="/degree">
-                          Carreras
-                        </NavLink>
-                      </li>
-                      <li>
-                        <NavLink
-                          className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
-                          to="/teachers">
-                          Docentes
-                        </NavLink>
+                        <div
+                          className={styles.toolbar__dropdown_container}
+                          onMouseEnter={() => setIcon(<FontAwesomeIcon icon={faAngleRight} />)}
+                          onMouseLeave={() => setIcon(<FontAwesomeIcon icon={faAngleDown} />)}
+                        >
+                          <span>Administrar {icon}</span>
+                          <ul>
+                            <li>
+                              <NavLink
+                                className={({ isActive }) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                                to="/students"
+                              >
+                                Alumnos
+                              </NavLink>
+                            </li>
+                            <hr />
+                            <li>
+                              <NavLink
+                                className={({ isActive }) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                                to="/degree"
+                              >
+                                Carreras
+                              </NavLink>
+                            </li>
+                            <hr />
+                            <li>
+                              <NavLink
+                                className={({ isActive }) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                                to="/teachers"
+                              >
+                                Docentes
+                              </NavLink>
+                            </li>
+                          </ul>
+                        </div>
                       </li>
                       <li>
                         <NavLink
@@ -127,13 +168,6 @@ const NavigationBar = ({ toggleClick }) => {
                       <li>
                         <NavLink
                           className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
-                          to="/users">
-                          Administrativos
-                        </NavLink>
-                      </li>
-                      <li>
-                        <NavLink
-                          className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
                           to="/passwordblank">
                           Blanqueo Password
                         </NavLink>
@@ -146,6 +180,22 @@ const NavigationBar = ({ toggleClick }) => {
                         >
                           <span>Administrar {icon}</span>
                           <ul>
+                            <li>
+                              <NavLink
+                                className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                                to="/users">
+                                Usuarios
+                              </NavLink>
+                            </li>
+                            <hr />
+                            <li>
+                              <NavLink
+                                className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                                to="/degree">
+                                Carreras
+                              </NavLink>
+                            </li>
+                            <hr />
                             <li>
                               <NavLink
                                 className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}

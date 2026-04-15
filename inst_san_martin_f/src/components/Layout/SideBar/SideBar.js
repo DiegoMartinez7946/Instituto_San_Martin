@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faAngleDown, faAngleRight } from '@fortawesome/free-solid-svg-icons';
 
 import { useGlobal } from "./../../../context/Global/GlobalProvider";
+import { decodeTokenFromCookie, normalizeRoleFromToken } from '../../../utils/jwt';
 
 import styles from './SideBar.module.css';
 
@@ -17,13 +18,16 @@ const SideBar = ({ show, click }) => {
     setIcon(<FontAwesomeIcon icon={faAngleDown} />);
   }, [globalState]);
 
+  const sessionRole =
+    normalizeRoleFromToken(userLogin) || normalizeRoleFromToken(decodeTokenFromCookie());
+
   return (
     <nav className={(show ? [styles.side_bar, styles.side_bar__open].join(" ") : styles.side_bar)}>
       <div className={styles.side_bar__close}>
         <span onClick={click}>X</span>
       </div>
       {(() => {
-        switch(userLogin.type) {
+        switch (sessionRole) {
           case "ALUMNO": return (
             <ul>
               <li>
@@ -45,25 +49,41 @@ const SideBar = ({ show, click }) => {
           case "ADMINISTRATIVO": return (
             <ul>
               <li>
-                <NavLink
-                  className={styles.side_bar__link}
-                  to="/students">
-                  Alumnos
-                </NavLink>
-              </li>
-              <li>
-                <NavLink
-                  className={styles.side_bar__link}
-                  to="/degree">
-                  Carreras
-                </NavLink>
-              </li>
-              <li>
-                <NavLink
-                  className={styles.side_bar__link}
-                  to="/teachers">
-                  Docentes
-                </NavLink>
+                <div
+                  className={styles.sidebar__dropdown_container}
+                  onMouseEnter={() => setIcon(<FontAwesomeIcon icon={faAngleRight} />)}
+                  onMouseLeave={() => setIcon(<FontAwesomeIcon icon={faAngleDown} />)}
+                >
+                  <span>Administrar {icon}</span>
+                  <ul>
+                    <li>
+                      <NavLink
+                        className={styles.side_bar__link_submenu}
+                        to="/students"
+                      >
+                        Alumnos
+                      </NavLink>
+                    </li>
+                    <hr />
+                    <li>
+                      <NavLink
+                        className={styles.side_bar__link_submenu}
+                        to="/degree"
+                      >
+                        Carreras
+                      </NavLink>
+                    </li>
+                    <hr />
+                    <li>
+                      <NavLink
+                        className={styles.side_bar__link_submenu}
+                        to="/teachers"
+                      >
+                        Docentes
+                      </NavLink>
+                    </li>
+                  </ul>
+                </div>
               </li>
               <li>
                 <NavLink
@@ -86,13 +106,6 @@ const SideBar = ({ show, click }) => {
               <li>
                 <NavLink
                   className={styles.side_bar__link}
-                  to="/users">
-                  Administrativos
-                </NavLink>
-              </li>
-              <li>
-                <NavLink
-                  className={styles.side_bar__link}
                   to="/passwordblank">
                   Blanqueo Password
                 </NavLink>
@@ -105,6 +118,22 @@ const SideBar = ({ show, click }) => {
                 >
                   <span>Administrar {icon}</span>
                   <ul>
+                    <li>
+                      <NavLink
+                        className={styles.side_bar__link_submenu}
+                        to="/users">
+                        Usuarios
+                      </NavLink>
+                    </li>
+                    <hr />
+                    <li>
+                      <NavLink
+                        className={styles.side_bar__link_submenu}
+                        to="/degree">
+                        Carreras
+                      </NavLink>
+                    </li>
+                    <hr />
                     <li>
                       <NavLink
                         className={styles.side_bar__link_submenu}
