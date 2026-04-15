@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Form, Button } from 'react-bootstrap';
 
 import ConfirmChangeEstadoModal from '../../../components/ConfirmChangeEstadoModal/ConfirmChangeEstadoModal';
+import FormEditLockBanner from '../../../components/FormEditLockBanner/FormEditLockBanner';
+import { useFormEditLock } from '../../../hooks/useFormEditLock';
+import { isSaveSuccess } from '../../../utils/saveResult';
 import { NIVELES_ORDENADOS, jerarquiaDeNivel, etiquetaNivel } from '../../../constant/nivelesAcademicos';
 import { validateDNI } from '../../../utils/dni';
 import {
@@ -30,6 +33,9 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
   });
   const [activeFormConfirm, setActiveFormConfirm] = useState(null);
   const [activeFormSaving, setActiveFormSaving] = useState(false);
+
+  const lockEntityKey = (dataEntry && dataEntry.id) || '';
+  const { readOnly, unlocked, setUnlocked, armLockAfterSave } = useFormEditLock(lockEntityKey, dataEntry);
 
   useEffect(() => {
     const entry = dataEntry && typeof dataEntry === 'object' ? dataEntry : null;
@@ -129,7 +135,7 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
     return '';
   };
 
-  const sendData = (e) => {
+  const sendData = async (e) => {
     e.preventDefault();
     setEmailError('');
     setPhoneError('');
@@ -149,12 +155,15 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
       return;
     }
     setDniError('');
-    saveData({
+    const res = await saveData({
       ...data,
       dni: String(data.dni).trim(),
       email: String(data.email).trim(),
       phone: data.phone
     });
+    if (isSaveSuccess(res)) {
+      armLockAfterSave();
+    }
   };
 
   const selectableDegrees = (degrees || []).filter(d => {
@@ -167,6 +176,13 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
   return (
     <Form onSubmit={sendData}>
       <Form.Control type="hidden" name="id" value={data.id} readOnly />
+
+      <FormEditLockBanner
+        entityKey={lockEntityKey}
+        estadoActivo={lockEntityKey ? data.active !== false : undefined}
+        unlocked={unlocked}
+        onUnlock={() => setUnlocked(true)}
+      />
 
       <Form.Group className="mb-3" controlId="studentIdAlumno">
         <Form.Label>ID de alumno</Form.Label>
@@ -187,6 +203,7 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
           onChange={handleInputChange}
           required
           autoFocus
+          readOnly={readOnly}
         />
       </Form.Group>
 
@@ -199,6 +216,7 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
           onChange={handleInputChange}
           isInvalid={!!emailError}
           placeholder="nombre@ejemplo.com"
+          readOnly={readOnly}
         />
         <Form.Control.Feedback type="invalid">{emailError}</Form.Control.Feedback>
       </Form.Group>
@@ -214,6 +232,7 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
           value={data.phone}
           onChange={handlePhoneChange}
           isInvalid={!!phoneError}
+          readOnly={readOnly}
         />
         <Form.Control.Feedback type="invalid">{phoneError}</Form.Control.Feedback>
         <Form.Text className="text-muted">Solo números, 7 a 15 dígitos. Deje vacío si no aplica.</Form.Text>
@@ -231,6 +250,7 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
           onChange={handleInputChange}
           isInvalid={!!dniError}
           required
+          readOnly={readOnly}
         />
         <Form.Control.Feedback type="invalid">{dniError}</Form.Control.Feedback>
         <Form.Text className="text-muted">7 u 8 dígitos numéricos, sin puntos.</Form.Text>
@@ -243,6 +263,7 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
           name="address"
           value={data.address}
           onChange={handleInputChange}
+          readOnly={readOnly}
         />
       </Form.Group>
 
@@ -259,6 +280,7 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
               label={etiquetaNivel(n)}
               checked={data.nivelAprobado === n}
               onChange={handleInputChange}
+              disabled={readOnly}
             />
           ))}
         </div>
@@ -267,7 +289,7 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
         </Form.Text>
       </Form.Group>
 
-      {data.id ? (
+      {data.id && unlocked ? (
         <Form.Group className="mb-3" controlId="studentEstado">
           <Form.Label>Estado</Form.Label>
           <div>
@@ -312,8 +334,8 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
                   label={d.name + (d.nivel ? ` (${etiquetaNivel(d.nivel)})` : '')}
                   title={degreeCheckboxTitle(d)}
                   checked={(data.degreeIds || []).includes(id)}
-                  disabled={dis}
-                  onChange={() => { if (!dis) toggleDegree(id); }}
+                  disabled={readOnly || dis}
+                  onChange={() => { if (!dis && !readOnly) toggleDegree(id); }}
                 />
               );
             })
@@ -321,7 +343,7 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
         </div>
       </Form.Group>
 
-      <Button variant="primary" type="submit" className="w-100">
+      <Button variant="primary" type="submit" className="w-100" disabled={readOnly}>
         {data.id ? 'Actualizar' : 'Guardar'}
       </Button>
 

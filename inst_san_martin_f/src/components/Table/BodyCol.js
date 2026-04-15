@@ -6,7 +6,7 @@ import { faPencil, faTrash, faKey, faMagnifyingGlass, faCircleCheck } from '@for
 
 import styles from './Table.module.css';
 
-const BodyCol = ({ data, colActions, actions, colNumber, wide }) => {
+const BodyCol = ({ data, colActions, actions, colNumber, wide, nowrap }) => {
   const eventHandler = (e) => {
     if (colActions) {
       colActions(e);
@@ -17,7 +17,9 @@ const BodyCol = ({ data, colActions, actions, colNumber, wide }) => {
 
   const colClass = [
     colNumber > 0 ? '' : styles.hiddenDiv,
+    !isActionsColumn && !nowrap ? styles.colCell : '',
     wide ? styles.colWide : '',
+    nowrap ? styles.colNoWrap : '',
     isActionsColumn ? styles.BodyColActions : ''
   ]
     .filter(Boolean)

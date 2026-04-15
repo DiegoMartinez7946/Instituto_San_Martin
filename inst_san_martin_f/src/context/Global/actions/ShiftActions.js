@@ -28,8 +28,8 @@ export const updateShift = async (dispatch, item) => {
       'Authorization': `Bearer${access_token}`
     },
   };
-  const result = await clientAxios.put('/shift', 
-    { id: item.ID, type: item.type }, options);
+  const result = await clientAxios.put('/shift',
+    { ID: item.ID, type: item.type }, options);
 
   dispatch({
     type: 'UPDATE_SHIFT',

@@ -4,6 +4,7 @@ import { Modal, Button } from 'react-bootstrap';
 const entityPhrase = (kind) => {
   if (kind === 'docente') return 'del docente';
   if (kind === 'alumno') return 'del alumno';
+  if (kind === 'usuario') return 'del usuario';
   return 'de la carrera';
 };
 
@@ -26,7 +27,7 @@ const ConfirmChangeEstadoModal = ({
       <Modal.Header closeButton={!confirming}>
         <Modal.Title>Confirmar cambio de estado</Modal.Title>
       </Modal.Header>
-      <Modal.Body>
+      <Modal.Body style={{ overflowX: 'hidden', maxWidth: '100%' }}>
         <p className="mb-0">
           Está por cambiar el estado {phrase}
           {itemName ? ` «${itemName}»` : ''} de <strong>{fromTxt}</strong> a <strong>{toTxt}</strong>.

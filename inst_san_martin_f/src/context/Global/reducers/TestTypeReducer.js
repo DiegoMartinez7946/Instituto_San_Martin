@@ -1,34 +1,30 @@
+const asList = (items) => (Array.isArray(items) ? items : []);
+
 export default (state, action) => {
-  switch(action.type) {
+  const list = asList(state.testtypes);
+
+  switch (action.type) {
     case 'ADD_TEST_TYPE':
-      const testType = action.payload;
-      const newTestTypes = state.testtypes;
-      newTestTypes.push(testType);
       return {
         ...state,
-        testtypes: newTestTypes
+        testtypes: [...list, action.payload]
       };
     case 'UPDATE_TEST_TYPE':
-      const updatedTestTypes = state.testtypes.map(t => {
-        if (t.ID === action.payload.ID) {
-          t.type = action.payload.type;
-        }
-        return t;
-      });
       return {
         ...state,
-        testtypes: updatedTestTypes 
+        testtypes: list.map((t) =>
+          t.ID === action.payload.ID ? { ...t, type: action.payload.type } : t
+        )
       };
     case 'DELETE_TEST_TYPE':
-      const deletedTestTypes = state.testtypes.filter(f => f.ID !== action.payload.ID)
       return {
         ...state,
-        testtypes: deletedTestTypes
+        testtypes: list.filter((f) => f.ID !== action.payload.ID)
       };
     case 'GET_TEST_TYPE':
       return {
         ...state,
-        testtypes: action.payload
+        testtypes: Array.isArray(action.payload) ? action.payload : []
       };
     default:
       return state;

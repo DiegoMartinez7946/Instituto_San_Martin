@@ -13,18 +13,16 @@ const ModalTeacher = ({
   modalidades,
   changeActive
 }) => {
-  const eventHandler = (e) => {
-    saveEvent(e);
-  };
+  const eventHandler = async (e) => saveEvent(e);
 
   const isEdit = data && typeof data === 'object' && data.id;
 
   return (
-    <Modal show={show} onHide={handleClose} centered size="lg">
+    <Modal show={show} onHide={handleClose} centered size="lg" scrollable>
       <Modal.Header closeButton>
         <Modal.Title>{isEdit ? 'Editar docente' : 'Agregar docente'}</Modal.Title>
       </Modal.Header>
-      <Modal.Body>
+      <Modal.Body style={{ overflowX: 'hidden', maxWidth: '100%' }}>
         <FormTeacher
           key={isEdit ? data.id : 'new'}
           dataEntry={data}

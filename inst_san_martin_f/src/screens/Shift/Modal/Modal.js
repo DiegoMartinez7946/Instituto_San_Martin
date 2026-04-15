@@ -3,18 +3,17 @@ import { Modal } from 'react-bootstrap';
 
 import FormShift from '../Form/Form';
 
-const ModalShift = ({show, handleClose, saveEvent, data}) => {
+const ModalShift = ({ show, handleClose, saveEvent, data }) => {
+  const eventHandler = async (e) => saveEvent(e);
 
-  const eventHandler = (e) => {
-    saveEvent(e);
-  };
+  const isEdit = data && typeof data === 'object' && data.ID;
 
   return (
-    <Modal show={show} onHide={handleClose} centered>
+    <Modal show={show} onHide={handleClose} centered size="lg" scrollable>
       <Modal.Header closeButton>
-        <Modal.Title>{ data ? 'Editar Turno' : 'Agregar Turno'}</Modal.Title>
+        <Modal.Title>{isEdit ? 'Editar Turno' : 'Agregar Turno'}</Modal.Title>
       </Modal.Header>
-      <Modal.Body>
+      <Modal.Body style={{ overflowX: 'hidden', maxWidth: '100%' }}>
         <FormShift 
           dataEntry={data}
           saveData={(e) => eventHandler(e)}

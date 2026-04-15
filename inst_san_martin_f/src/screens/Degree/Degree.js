@@ -64,18 +64,24 @@ const Degree = () => {
   }, [globalState]);
 
   const saveEventHandler = async (e) => {
-    const result = !(e.id || e.ID) ?
-      await addDegree(globalDispatch, e) :
-      await updateDegree(globalDispatch, e);
-   
-    buildNotification(result); 
+    const result = !(e.id || e.ID)
+      ? await addDegree(globalDispatch, e)
+      : await updateDegree(globalDispatch, e);
+
+    buildNotification(result);
+    const codeNum = result && result.code !== undefined ? Number(result.code) : NaN;
+    if (codeNum !== 200 && codeNum !== 201) {
+      return result;
+    }
     setDataDegrees(getAllDegrees(globalDispatch));
-    setShow(current => !current);
+    setShow((current) => !current);
     setDataRow('');
+    return result;
   };
 
   const addDegreeEvent = () => {
-    setShow(current => !current);
+    setDataRow('');
+    setShow((current) => !current);
   };
 
   const closeDegreeEvent = () => {
@@ -129,7 +135,7 @@ const Degree = () => {
         </Row>
         <br />  
         <Row className={styles.tableRowWrap}>
-          <Col xs={12} className="px-2 px-md-3">
+          <Col xs={12} className="px-2 px-md-3 min-w-0">
             <Table
               key={'degree'}
               tableEvents={(e, d) => tableEvents(e, d)}
@@ -145,6 +151,11 @@ const Degree = () => {
         handleClose={closeDegreeEvent}
         saveEvent={(e) => saveEventHandler(e)}
         data={dataRow || ''}
+        changeActive={async (payload) => {
+          const result = await changeActiveDegree(globalDispatch, payload);
+          buildNotification(result);
+          return result;
+        }}
       />
       <ConfirmChangeEstadoModal
         show={!!estadoConfirm}

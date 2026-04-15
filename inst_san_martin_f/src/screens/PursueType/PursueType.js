@@ -61,18 +61,23 @@ const PursueType = () => {
   }, [globalState]);
 
   const saveEventHandler = async (e) => {
-    const result = e.ID === '' ?
-      await addPursueType(globalDispatch, e) :
-      await updatePursueType(globalDispatch, e);
-   
-    buildNotification(result); 
+    const result =
+      e.ID === '' ? await addPursueType(globalDispatch, e) : await updatePursueType(globalDispatch, e);
+
+    buildNotification(result);
+    const codeNum = result && result.code !== undefined ? Number(result.code) : NaN;
+    if (codeNum !== 200 && codeNum !== 201) {
+      return result;
+    }
     setDataPursueTypes(getAllPursueTypes(globalDispatch));
-    setShow(current => !current);
+    setShow((current) => !current);
     setDataRow('');
+    return result;
   };
 
   const addPursueTypeEvent = () => {
-    setShow(current => !current);
+    setDataRow('');
+    setShow((current) => !current);
   };
 
   const closePursueTypeEvent = () => {
@@ -115,7 +120,7 @@ const PursueType = () => {
         <br />  
         <Row>
           <Col xs lg="2"></Col>
-          <Col>
+          <Col className="min-w-0">
             <Table
               key={'pursuetype'}
               tableEvents={(e, d) => tableEvents(e, d)}

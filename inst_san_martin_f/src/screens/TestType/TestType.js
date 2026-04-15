@@ -61,18 +61,23 @@ const TestType = () => {
   }, [globalState]);
 
   const saveEventHandler = async (e) => {
-    const result = e.ID === '' ?
-      await addTestType(globalDispatch, e) :
-      await updateTestType(globalDispatch, e);
-   
-    buildNotification(result); 
+    const result =
+      e.ID === '' ? await addTestType(globalDispatch, e) : await updateTestType(globalDispatch, e);
+
+    buildNotification(result);
+    const codeNum = result && result.code !== undefined ? Number(result.code) : NaN;
+    if (codeNum !== 200 && codeNum !== 201) {
+      return result;
+    }
     setDataTestTypes(getAllTestTypes(globalDispatch));
-    setShow(current => !current);
+    setShow((current) => !current);
     setDataRow('');
+    return result;
   };
 
   const addTestTypeEvent = () => {
-    setShow(current => !current);
+    setDataRow('');
+    setShow((current) => !current);
   };
 
   const closeTestTypeEvent = () => {
@@ -115,7 +120,7 @@ const TestType = () => {
         <br />  
         <Row>
           <Col xs lg="2"></Col>
-          <Col>
+          <Col className="min-w-0">
             <Table
               key={'testtype'}
               tableEvents={(e, d) => tableEvents(e, d)}

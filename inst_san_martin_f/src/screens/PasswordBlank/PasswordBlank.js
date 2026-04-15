@@ -27,25 +27,43 @@ const PasswordBlank = () => {
   };
 
   const buildNotification = (result) => {
-    switch (result.code) {
+    if (result == null || result.code === undefined) {
+      showError('No se recibió respuesta del servidor. Revise la conexión o el token.', 'danger');
+      return;
+    }
+    const code = Number(result.code);
+    switch (code) {
       case 199:
-        showError(result.message, 'warning');
+        showError(result.message || 'Advertencia', 'warning');
         break;
       case 200:
       case 201:
-        showError(result.message, 'success');
+        showError(result.message || 'Operación correcta', 'success');
         break;
       case 400:
-        showError(result.message, 'danger');
-        break; 
+      case 404:
+        showError(result.message || 'Error', 'danger');
+        break;
       default:
+        showError(result.message || 'Respuesta no reconocida', 'warning');
         break;
     }
   };
 
   const eventHandler = async (e) => {
-    const result = await blankPassword(globalDispatch, e);
+    let result;
+    try {
+      result = await blankPassword(globalDispatch, e);
+    } catch (err) {
+      showError(
+        (err && err.response && err.response.data && err.response.data.message) ||
+          'Error de red al contactar el servidor.',
+        'danger'
+      );
+      return null;
+    }
     buildNotification(result);
+    return result;
   };
 
   return (

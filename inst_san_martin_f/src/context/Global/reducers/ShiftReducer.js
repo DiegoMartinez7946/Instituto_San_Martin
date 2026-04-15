@@ -1,35 +1,35 @@
+const asList = (shifts) => (Array.isArray(shifts) ? shifts : []);
 
 export default (state, action) => {
-  switch(action.type) {
+  const list = asList(state.shifts);
+
+  switch (action.type) {
     case 'ADD_SHIFT':
-      const shift = action.payload;
-      const newShifts = state.shifts;
-      newShifts.push(shift);
       return {
         ...state,
-        shifts: newShifts
+        shifts: [...list, action.payload]
       };
     case 'UPDATE_SHIFT':
-      const updatedShifts = state.shifts.map(s => {
-        if (s.ID === action.payload.ID) {
-          s.type = action.payload.type;
-        }
-        return s;
-      });
       return {
         ...state,
-        shifts: updatedShifts
+        shifts: list.map((s) =>
+          s.ID === action.payload.ID ? { ...s, type: action.payload.type } : s
+        )
       };
     case 'DELETE_SHIFT':
-      const deletedShifts = state.shifts.filter(f => f.ID !== action.payload.ID)
       return {
         ...state,
-        shifts: deletedShifts
+        shifts: list.filter((f) => f.ID !== action.payload.ID)
       };
     case 'GET_SHIFT':
       return {
         ...state,
-        shifts: action.payload
+        shifts: Array.isArray(action.payload)
+          ? action.payload.map((s) => ({
+              ...s,
+              ID: s.ID || s.id || s._id || ''
+            }))
+          : []
       };
     default:
       return state;

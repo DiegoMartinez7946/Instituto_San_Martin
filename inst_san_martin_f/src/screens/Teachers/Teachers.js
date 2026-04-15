@@ -126,18 +126,20 @@ function Teachers() {
       buildNotification(result);
       const codeNum = result && result.code !== undefined ? Number(result.code) : NaN;
       if (codeNum !== 200 && codeNum !== 201) {
-        return;
+        return result;
       }
       await getTeachers(globalDispatch);
       setShow(false);
       setDataRow(null);
+      return result;
     } catch (err) {
       const data = err.response && err.response.data;
-      buildNotification(
+      const fail =
         data && data.message
           ? { ...data, code: data.code || err.response.status }
-          : { message: err.message || 'Error de red', code: 400 }
-      );
+          : { message: err.message || 'Error de red', code: 400 };
+      buildNotification(fail);
+      return fail;
     }
   };
 
@@ -214,7 +216,7 @@ function Teachers() {
         </Row>
         <br />
         <Row className={styles.tableRowWrap}>
-          <Col xs={12} className="px-2 px-md-3">
+          <Col xs={12} className="px-2 px-md-3 min-w-0">
             {tableData.length > 0 ? (
               <Table
                 key="teachers-table"

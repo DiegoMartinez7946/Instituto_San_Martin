@@ -29,7 +29,7 @@ export default (state, action) => {
     case 'GETUSERSBYROLE':
       return {
         ...state,
-        users: action.payload
+        users: Array.isArray(action.payload) ? action.payload : []
       };
 
     case 'BLANK_PASSWORD':
@@ -38,14 +38,14 @@ export default (state, action) => {
     case 'CHANGE_PASSWORD':
       return state;
 
-    case 'ADD_USER':
+    case 'ADD_USER': {
       const user = action.payload;
-      const newUsers = state.users;
-      newUsers.push(user);
+      const prev = Array.isArray(state.users) ? state.users : [];
       return {
         ...state,
-        users: newUsers
+        users: [...prev, user]
       };
+    }
 
     default:
       return state;

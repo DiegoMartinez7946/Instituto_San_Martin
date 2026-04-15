@@ -9,11 +9,22 @@ import styles from './Table.module.css';
 
 
 const DEFAULT_WIDE_KEYS = ['resumen', 'carreras', 'enseniaen'];
+const DEFAULT_NOWRAP_KEYS = ['estado'];
 
-const Table = ({ data, tableEvents, actions, wideKeys = DEFAULT_WIDE_KEYS }) => {
+const Table = ({
+  data,
+  tableEvents,
+  actions,
+  wideKeys = DEFAULT_WIDE_KEYS,
+  nowrapKeys = DEFAULT_NOWRAP_KEYS
+}) => {
   const wideSet = useMemo(
     () => new Set((wideKeys || []).map((k) => String(k).toLowerCase())),
     [wideKeys]
+  );
+  const nowrapSet = useMemo(
+    () => new Set((nowrapKeys || []).map((k) => String(k).toLowerCase())),
+    [nowrapKeys]
   );
 
   const [header, setHeader] = useState(null);
@@ -31,7 +42,7 @@ const Table = ({ data, tableEvents, actions, wideKeys = DEFAULT_WIDE_KEYS }) => 
       loadHeader();
       loaderBody();
     }
-  }, [dataTable, wideSet]);
+  }, [dataTable, wideSet, nowrapSet]);
 
   const loadHeader = () => {
     const keys = Object.keys(dataTable[0]);
@@ -41,6 +52,7 @@ const Table = ({ data, tableEvents, actions, wideKeys = DEFAULT_WIDE_KEYS }) => 
         data={lodash.capitalize(colKey)}
         colNumber={i}
         wide={wideSet.has(colKey.toLowerCase())}
+        nowrap={nowrapSet.has(colKey.toLowerCase())}
       />
     ));
     setHeader([
@@ -63,6 +75,7 @@ const Table = ({ data, tableEvents, actions, wideKeys = DEFAULT_WIDE_KEYS }) => 
           <BodyCol
             key={colKey}
             wide={wideSet.has(colKey.toLowerCase())}
+            nowrap={nowrapSet.has(colKey.toLowerCase())}
             data={typeof row[colKey] === 'boolean' ? (row[colKey] === true ? 'Activo' : 'Inactivo') : row[colKey]}
             colNumber={j}
             actions={actions}
