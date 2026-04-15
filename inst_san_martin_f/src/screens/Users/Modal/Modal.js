@@ -3,7 +3,7 @@ import { Modal } from 'react-bootstrap';
 
 import FormUser from '../Form/FormUser';
 
-const UsersModal = ({ show, handleClose, saveEvent, data, roles, shifts, changeActive }) => {
+const UsersModal = ({ show, handleClose, saveEvent, data, roles, shifts, degrees, changeActive }) => {
   const eventHandler = async (e) => saveEvent(e);
 
   const isEdit = data && typeof data === 'object' && data.id;
@@ -26,6 +26,7 @@ const UsersModal = ({ show, handleClose, saveEvent, data, roles, shifts, changeA
           dataEntry={data || null}
           roles={roles}
           shifts={shifts}
+          degrees={degrees}
           saveData={eventHandler}
           changeActive={changeActive}
         />

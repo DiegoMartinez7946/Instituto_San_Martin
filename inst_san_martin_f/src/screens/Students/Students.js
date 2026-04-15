@@ -124,12 +124,24 @@ const Students = () => {
 
   const tableEvents = (ev, row) => {
     if (ev === 'edit') {
-      const full = (globalState.students || []).find(s => s.id === row.idAlumno);
-      setDataRow(full || row);
+      const list = globalState.students || [];
+      const full =
+        list.find((s) => String(s.id) === String(row.idAlumno)) ||
+        (row.dni ? list.find((s) => String(s.dni) === String(row.dni)) : null);
+      if (!full) {
+        showError(
+          'No se encontró el alumno en memoria. Recargue la página o use Agregar.',
+          'warning'
+        );
+        return;
+      }
+      setDataRow(full);
       setShow(true);
     }
     if (ev === 'check') {
-      const full = (globalState.students || []).find((s) => s.id === row.idAlumno);
+      const full = (globalState.students || []).find(
+        (s) => String(s.id) === String(row.idAlumno)
+      );
       const cur = full ? full.active !== false : row.estado === true;
       setActiveConfirm({
         id: row.idAlumno,

@@ -19,6 +19,8 @@ type studentPayload struct {
 	DNI           string   `json:"dni"`
 	Address       string   `json:"address"`
 	NivelAprobado string   `json:"nivelAprobado"`
+	Modalidad     string   `json:"modalidad"`
+	Condicion     string   `json:"condicion"`
 	DegreeIDs     []string `json:"degreeIds"`
 	Active        *bool    `json:"active"`
 }
@@ -31,6 +33,8 @@ func parseStudentPayload(p studentPayload) (models.Student, error) {
 	s.DNI = p.DNI
 	s.Address = p.Address
 	s.NivelAprobado = p.NivelAprobado
+	s.Modalidad = p.Modalidad
+	s.Condicion = p.Condicion
 
 	if p.ID != "" {
 		oid, err := primitive.ObjectIDFromHex(p.ID)

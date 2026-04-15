@@ -9,14 +9,15 @@ import (
 	"github.com/benjacifre10/san_martin_b/services"
 )
 
-/* AdministrativoOnly permite la petición solo si el JWT corresponde a rol ADMINISTRATIVO (docentes y datos sensibles de gestión académica). */
+/* AdministrativoOnly permite la petición si el JWT corresponde a rol ADMINISTRATIVO o ADMINISTRADOR. */
 func AdministrativoOnly(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		if strings.TrimSpace(strings.ToUpper(services.GUserType)) != "ADMINISTRATIVO" {
+		role := strings.TrimSpace(strings.ToUpper(services.GUserType))
+		if role != "ADMINISTRATIVO" && role != "ADMINISTRADOR" {
 			w.WriteHeader(http.StatusForbidden)
 			_ = json.NewEncoder(w).Encode(models.Response{
-				Message: "Solo usuarios administrativos pueden acceder a este recurso",
+				Message: "Solo usuarios administrativos o administradores pueden acceder a este recurso",
 				Code:    403,
 			})
 			return

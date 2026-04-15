@@ -7,7 +7,10 @@ const ModalStudent = ({ show, handleClose, saveEvent, data, degrees, changeActiv
 
   const eventHandler = async (e) => saveEvent(e);
 
-  const isEdit = data && typeof data === 'object' && data.id;
+  const isEdit =
+    data &&
+    typeof data === 'object' &&
+    !!(data.id || data.idAlumno);
 
   return (
     <Modal show={show} onHide={handleClose} centered size="lg" scrollable>
@@ -16,7 +19,7 @@ const ModalStudent = ({ show, handleClose, saveEvent, data, degrees, changeActiv
       </Modal.Header>
       <Modal.Body style={{ overflowX: 'hidden', maxWidth: '100%' }}>
         <FormStudent
-          key={isEdit ? data.id : 'new'}
+          key={isEdit ? data.id || data.idAlumno : 'new'}
           dataEntry={data}
           degrees={degrees}
           saveData={(e) => eventHandler(e)}

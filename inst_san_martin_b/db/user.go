@@ -140,6 +140,7 @@ func GetUsersDB(roleType string) ([]models.UserListRow, int, error) {
 			"active":   bson.M{"$ifNull": bson.A{"$active", true}},
 			"shiftidOne": bson.M{"$ifNull": bson.A{"$shiftid", ""}},
 			"shiftidsArr": bson.M{"$ifNull": bson.A{"$shiftids", bson.A{}}},
+			"degreeidsArr": bson.M{"$ifNull": bson.A{"$degreeids", bson.A{}}},
 		},
 	})
 	condition = append(condition, bson.M{
@@ -149,8 +150,10 @@ func GetUsersDB(roleType string) ([]models.UserListRow, int, error) {
 			"foreignField": "_id",
 			"as":           "role",
 		}})
-	condition = append(condition, bson.M{"$match": bson.M{"role.type": roleType}})
 	condition = append(condition, bson.M{"$unwind": "$role"})
+	if strings.TrimSpace(roleType) != "" {
+		condition = append(condition, bson.M{"$match": bson.M{"role.type": roleType}})
+	}
 
 	condition = append(condition, bson.M{"$addFields": bson.M{
 		"shiftIdsNorm": bson.M{
@@ -164,6 +167,13 @@ func GetUsersDB(roleType string) ([]models.UserListRow, int, error) {
 						bson.A{},
 					},
 				},
+			},
+		},
+		"degreeIdsHex": bson.M{
+			"$map": bson.M{
+				"input": "$degreeidsArr",
+				"as":    "dg",
+				"in":    bson.M{"$toString": "$$dg"},
 			},
 		},
 	}})
@@ -209,8 +219,9 @@ func GetUsersDB(roleType string) ([]models.UserListRow, int, error) {
 			"address":   1,
 			"phone":     1,
 			"active":    1,
-			"shiftIds":  "$shiftIdsNorm",
-			"shiftType": bson.M{"$ifNull": bson.A{"$shiftTypeJoined", ""}},
+			"shiftIds":   "$shiftIdsNorm",
+			"shiftType":  bson.M{"$ifNull": bson.A{"$shiftTypeJoined", ""}},
+			"degreeIds":  "$degreeIdsHex",
 		},
 	})
 
@@ -269,7 +280,7 @@ func FindUserByIDDB(id primitive.ObjectID) (models.User, bool, error) {
 
 /***************************************************************/
 /* UpdateUserProfileDB actualiza datos de perfil (sin password) */
-func UpdateUserProfileDB(id primitive.ObjectID, name, dni, address, phone, email string, shiftIDs []string) (bool, error) {
+func UpdateUserProfileDB(id primitive.ObjectID, name, dni, address, phone, email string, shiftIDs []string, degreeIDs []primitive.ObjectID) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
@@ -281,6 +292,7 @@ func UpdateUserProfileDB(id primitive.ObjectID, name, dni, address, phone, email
 		"phone":     phone,
 		"email":     email,
 		"shiftids":  shiftIDs,
+		"degreeids": degreeIDs,
 		"updatedat": time.Now(),
 	}
 	_, err := collection.UpdateOne(ctx, bson.M{"_id": id}, bson.M{

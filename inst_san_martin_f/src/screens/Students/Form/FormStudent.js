@@ -20,6 +20,7 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
   const [dniError, setDniError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [phoneError, setPhoneError] = useState('');
+  const [formError, setFormError] = useState('');
   const [data, setData] = useState({
     id: '',
     name: '',
@@ -28,27 +29,47 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
     dni: '',
     address: '',
     nivelAprobado: '',
+    modalidad: '',
+    condicion: '',
     degreeIds: [],
     active: true
   });
   const [activeFormConfirm, setActiveFormConfirm] = useState(null);
   const [activeFormSaving, setActiveFormSaving] = useState(false);
 
-  const lockEntityKey = (dataEntry && dataEntry.id) || '';
+  const lockEntityKey = (dataEntry && (dataEntry.id || dataEntry.idAlumno)) || '';
   const { readOnly, unlocked, setUnlocked, armLockAfterSave } = useFormEditLock(lockEntityKey, dataEntry);
 
   useEffect(() => {
     const entry = dataEntry && typeof dataEntry === 'object' ? dataEntry : null;
+    const isActive = entry ? entry.active !== false : true;
+    const rawModalidad =
+      entry && (entry.modalidad != null && entry.modalidad !== ''
+        ? entry.modalidad
+        : entry.Modalidad);
+    const rawCondicion =
+      entry && (entry.condicion != null && entry.condicion !== ''
+        ? entry.condicion
+        : entry.Condicion);
     setData({
-      id: (entry && entry.id) || '',
+      id: (entry && (entry.id || entry.idAlumno)) || '',
       name: (entry && entry.name) || '',
       email: (entry && entry.email) || '',
       phone: sanitizeTelefonoInput((entry && entry.phone) || ''),
       dni: (entry && entry.dni) || '',
       address: (entry && entry.address) || '',
-      nivelAprobado: (entry && entry.nivelAprobado) ? String(entry.nivelAprobado).toLowerCase() : '',
-      degreeIds: entry && Array.isArray(entry.degreeIds) ? [...entry.degreeIds] : [],
-      active: entry ? entry.active !== false : true
+      nivelAprobado: (entry && entry.nivelAprobado)
+        ? String(entry.nivelAprobado).toLowerCase()
+        : '',
+      modalidad:
+        isActive && rawModalidad ? String(rawModalidad).toUpperCase() : '',
+      condicion:
+        isActive && rawCondicion ? String(rawCondicion).toUpperCase() : '',
+      degreeIds:
+        entry && Array.isArray(entry.degreeIds)
+          ? entry.degreeIds.map((x) => String(x))
+          : [],
+      active: isActive
     });
     setActiveFormConfirm(null);
   }, [dataEntry]);
@@ -67,7 +88,12 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
     setActiveFormSaving(false);
     const code = Number(res.code);
     if (code === 200) {
-      setData((prev) => ({ ...prev, active: activeFormConfirm.toActive }));
+      setData((prev) => ({
+        ...prev,
+        active: activeFormConfirm.toActive,
+        modalidad: activeFormConfirm.toActive ? prev.modalidad : '',
+        condicion: activeFormConfirm.toActive ? prev.condicion : ''
+      }));
       setActiveFormConfirm(null);
     } else if (code === 199) {
       setActiveFormConfirm(null);
@@ -75,7 +101,12 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
   };
 
   const handleInputChange = (event) => {
-    const { name, value } = event.target;
+    const t = event.currentTarget || event.target;
+    const name = t.name;
+    const value = t.value;
+    if (!name) {
+      return;
+    }
     if (name === 'dni') {
       setDniError('');
     }
@@ -101,6 +132,7 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
 
   const handlePhoneChange = (event) => {
     setPhoneError('');
+    setFormError('');
     const digits = sanitizeTelefonoInput(event.target.value);
     setData((prev) => ({ ...prev, phone: digits }));
   };
@@ -155,14 +187,27 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
       return;
     }
     setDniError('');
+    if (data.active !== false) {
+      if (!String(data.modalidad || '').trim()) {
+        setFormError('Seleccione si el alumno es presencial o remoto');
+        return;
+      }
+      if (!String(data.condicion || '').trim()) {
+        setFormError('Seleccione si el alumno es regular o libre');
+        return;
+      }
+    }
     const res = await saveData({
       ...data,
       dni: String(data.dni).trim(),
       email: String(data.email).trim(),
-      phone: data.phone
+      phone: data.phone,
+      modalidad: data.active === false ? '' : String(data.modalidad || '').toUpperCase(),
+      condicion: data.active === false ? '' : String(data.condicion || '').toUpperCase()
     });
     if (isSaveSuccess(res)) {
       armLockAfterSave();
+      setFormError('');
     }
   };
 
@@ -289,6 +334,63 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
         </Form.Text>
       </Form.Group>
 
+      <Form.Group className="mb-3" controlId="studentModalidadCondicion">
+        <Form.Label>Rol en sistema</Form.Label>
+        <div className="border rounded p-2">
+          <Form.Label className="small text-muted mb-1">Modalidad del alumno</Form.Label>
+          <Form.Check
+            type="radio"
+            id="student-modalidad-presencial"
+            name="modalidad"
+            value="PRESENCIAL"
+            label="Presencial"
+            checked={data.modalidad === 'PRESENCIAL'}
+            onChange={() =>
+              setData((prev) => ({ ...prev, modalidad: 'PRESENCIAL' }))
+            }
+            disabled={readOnly || data.active === false}
+          />
+          <Form.Check
+            type="radio"
+            id="student-modalidad-remoto"
+            name="modalidad"
+            value="REMOTO"
+            label="Remoto"
+            checked={data.modalidad === 'REMOTO'}
+            onChange={() => setData((prev) => ({ ...prev, modalidad: 'REMOTO' }))}
+            disabled={readOnly || data.active === false}
+          />
+
+          <hr className="my-2" />
+          <Form.Label className="small text-muted mb-1">Condición académica</Form.Label>
+          <Form.Check
+            type="radio"
+            id="student-condicion-regular"
+            name="condicion"
+            value="REGULAR"
+            label="Regular"
+            checked={data.condicion === 'REGULAR'}
+            onChange={() =>
+              setData((prev) => ({ ...prev, condicion: 'REGULAR' }))
+            }
+            disabled={readOnly || data.active === false}
+          />
+          <Form.Check
+            type="radio"
+            id="student-condicion-libre"
+            name="condicion"
+            value="LIBRE"
+            label="Libre"
+            checked={data.condicion === 'LIBRE'}
+            onChange={() => setData((prev) => ({ ...prev, condicion: 'LIBRE' }))}
+            disabled={readOnly || data.active === false}
+          />
+        </div>
+        <Form.Text className="text-muted">
+          Si el alumno está inactivo, estos campos quedan en blanco hasta reactivarlo.
+        </Form.Text>
+      </Form.Group>
+
       {data.id && unlocked ? (
         <Form.Group className="mb-3" controlId="studentEstado">
           <Form.Label>Estado</Form.Label>
@@ -342,6 +444,8 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
           )}
         </div>
       </Form.Group>
+
+      {formError ? <div className="text-danger small mb-2">{formError}</div> : null}
 
       <Button variant="primary" type="submit" className="w-100" disabled={readOnly}>
         {data.id ? 'Actualizar' : 'Guardar'}

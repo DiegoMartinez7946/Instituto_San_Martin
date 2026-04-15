@@ -21,6 +21,9 @@ type User struct {
 	// shiftid legacy (un solo turno); shiftids es el campo actual
 	ShiftID   string   `bson:"shiftid,omitempty" json:"shiftId,omitempty"`
 	ShiftIDs []string `bson:"shiftids,omitempty" json:"shiftIds,omitempty"`
+	// Carreras (ALUMNO / DOCENTE): ids Mongo como ObjectId; degreeIds en JSON es solo entrada API
+	DegreeIDs     []primitive.ObjectID `bson:"degreeids,omitempty" json:"-"`
+	DegreeIDHexes []string             `bson:"-" json:"degreeIds,omitempty"`
 	Active    bool               `bson:"active" json:"active"`
 	CreatedAt time.Time          `bson:"createdat" json:"createdAt,omitempty"`
 	UpdatedAt time.Time          `bson:"updatedat" json:"updatedAt,omitempty"`
@@ -49,7 +52,17 @@ type UserListRow struct {
 	Phone     string `json:"phone"`
 	ShiftIDs  []string `json:"shiftIds,omitempty"`
 	ShiftType string   `json:"shiftType,omitempty"`
+	DegreeIDs []string `json:"degreeIds,omitempty"`
 	Active    bool   `json:"active"`
+	// StudentLinked: cuenta user con rol ALUMNO y ficha en colección student (email o DNI).
+	// Sin omitempty para que el front reciba siempre la clave (p. ej. studentLinked: false).
+	StudentLinked bool   `json:"studentLinked"`
+	// StudentRecordID hex de la ficha en colección student cuando hay vínculo (misma persona).
+	StudentRecordID string `json:"studentRecordId"`
+	Modalidad       string `json:"modalidad"`
+	Condicion       string `json:"condicion"`
+	// Source indica el origen del registro: vacío o "user" = colección user; "teacher" / "student" = ficha académica (no cuenta de login).
+	Source string `json:"source,omitempty"`
 }
 
 /* Claim is the struct to process the jwt */

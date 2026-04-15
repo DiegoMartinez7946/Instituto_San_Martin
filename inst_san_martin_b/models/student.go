@@ -16,8 +16,12 @@ type Student struct {
 	DNI            string               `bson:"dni" json:"dni"`
 	Address        string               `bson:"address" json:"address"`
 	NivelAprobado  string               `bson:"nivelaprobado" json:"nivelAprobado"`
-	DegreeIDs      []primitive.ObjectID `bson:"degreeids" json:"degreeIds"`
-	Active         bool                 `bson:"active" json:"active"`
+	Modalidad      string               `bson:"modalidad,omitempty" json:"modalidad"`   // PRESENCIAL | REMOTO (json sin omitempty para que el front siempre reciba la clave)
+	Condicion      string               `bson:"condicion,omitempty" json:"condicion"` // REGULAR | LIBRE
+	DegreeIDs       []primitive.ObjectID `bson:"degreeids,omitempty" json:"degreeIds"`
+	// Algunos documentos usan camelCase en MongoDB; se fusiona en lectura (db/student.go).
+	DegreeIDsLegacy []primitive.ObjectID `bson:"degreeIds,omitempty" json:"-"`
+	Active          bool                 `bson:"active" json:"active"`
 	CreatedAt      time.Time            `bson:"createdat" json:"createdAt,omitempty"`
 	UpdatedAt      time.Time            `bson:"updatedat" json:"updatedAt,omitempty"`
 }
