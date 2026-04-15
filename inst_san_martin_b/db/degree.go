@@ -56,9 +56,11 @@ func InsertDegreeDB(d models.Degree) (string, error) {
 	db := config.MongoConnection.Database("san_martin")
 	collection := db.Collection("degree")
 
-	row := bson.M {
-		"name": d.Name,
-		"active": d.Active,
+	row := bson.M{
+		"name":          d.Name,
+		"nivel":         d.Nivel,
+		"resolucionid":  d.ResolucionID,
+		"active":        d.Active,
 	}
 
 	result, err := collection.InsertOne(ctx, row)
@@ -94,6 +96,63 @@ func CheckExistDegree(nameDegree string) (string, bool, error) {
 	return "", false, err
 }
 
+/* IsDegreeNameTakenByOther returns true if another degree (not excludeID) already uses this name */
+func IsDegreeNameTakenByOther(nameDegree string, excludeID primitive.ObjectID) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	db := config.MongoConnection.Database("san_martin")
+	collection := db.Collection("degree")
+
+	var result models.Degree
+	err := collection.FindOne(ctx, bson.M{"name": nameDegree}).Decode(&result)
+	if err != nil || result.Name == "" || result.ID.IsZero() {
+		return false
+	}
+	if excludeID.IsZero() {
+		return true
+	}
+	return result.ID != excludeID
+}
+
+/* IsResolucionIDTakenByOther returns true if another degree already uses this resolucionid (trimmed exact match) */
+func IsResolucionIDTakenByOther(resolucionID string, excludeID primitive.ObjectID) bool {
+	if resolucionID == "" {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	db := config.MongoConnection.Database("san_martin")
+	collection := db.Collection("degree")
+
+	var result models.Degree
+	err := collection.FindOne(ctx, bson.M{"resolucionid": resolucionID}).Decode(&result)
+	if err != nil || result.ID.IsZero() {
+		return false
+	}
+	if excludeID.IsZero() {
+		return true
+	}
+	return result.ID != excludeID
+}
+
+/* GetDegreeByID returns one degree by id (any active flag) */
+func GetDegreeByID(id primitive.ObjectID) (models.Degree, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	db := config.MongoConnection.Database("san_martin")
+	collection := db.Collection("degree")
+
+	var d models.Degree
+	err := collection.FindOne(ctx, bson.M{"_id": id}).Decode(&d)
+	if err != nil || d.ID.IsZero() {
+		return d, false
+	}
+	return d, true
+}
+
 /***************************************************************/
 /***************************************************************/
 /* UpdateDegreeDB update the degree in the db */
@@ -106,6 +165,8 @@ func UpdateDegreeDB(d models.Degree) (bool, error) {
 
 	row := make(map[string]interface{})
 	row["name"] = d.Name
+	row["nivel"] = d.Nivel
+	row["resolucionid"] = d.ResolucionID
 
 	updateString := bson.M {
 		"$set": row,

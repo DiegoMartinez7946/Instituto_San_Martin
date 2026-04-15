@@ -12,13 +12,15 @@ import (
 
 /* studentPayload decodes JSON degree ids as hex strings */
 type studentPayload struct {
-	ID        string   `json:"id"`
-	Name      string   `json:"name"`
-	Email     string   `json:"email"`
-	Phone     string   `json:"phone"`
-	DNI       string   `json:"dni"`
-	Address   string   `json:"address"`
-	DegreeIDs []string `json:"degreeIds"`
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Email         string   `json:"email"`
+	Phone         string   `json:"phone"`
+	DNI           string   `json:"dni"`
+	Address       string   `json:"address"`
+	NivelAprobado string   `json:"nivelAprobado"`
+	DegreeIDs     []string `json:"degreeIds"`
+	Active        *bool    `json:"active"`
 }
 
 func parseStudentPayload(p studentPayload) (models.Student, error) {
@@ -28,6 +30,7 @@ func parseStudentPayload(p studentPayload) (models.Student, error) {
 	s.Phone = p.Phone
 	s.DNI = p.DNI
 	s.Address = p.Address
+	s.NivelAprobado = p.NivelAprobado
 
 	if p.ID != "" {
 		oid, err := primitive.ObjectIDFromHex(p.ID)
@@ -43,6 +46,11 @@ func parseStudentPayload(p studentPayload) (models.Student, error) {
 			return s, err
 		}
 		s.DegreeIDs = append(s.DegreeIDs, oid)
+	}
+	if p.Active != nil {
+		s.Active = *p.Active
+	} else {
+		s.Active = true
 	}
 	return s, nil
 }
@@ -146,4 +154,31 @@ func UpdateStudent(w http.ResponseWriter, r *http.Request) {
 		Code:    code,
 	}
 	json.NewEncoder(w).Encode(res)
+}
+
+type studentActivePayload struct {
+	ID     string `json:"id"`
+	Active bool   `json:"active"`
+}
+
+/* ChangeActiveStudent PUT /student/active */
+func ChangeActiveStudent(w http.ResponseWriter, r *http.Request) {
+	var p studentActivePayload
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		_ = json.NewEncoder(w).Encode(models.Response{Message: "Parametros invalidos", Code: 400})
+		return
+	}
+	oid, err := primitive.ObjectIDFromHex(p.ID)
+	if err != nil {
+		_ = json.NewEncoder(w).Encode(models.Response{Message: "Id de alumno invalido", Code: 400})
+		return
+	}
+	msg, code, err := services.UpdateStudentActiveService(oid, p.Active)
+	if err != nil || code != 200 {
+		res := models.Response{Message: "Error al actualizar el estado del alumno. " + msg, Code: code}
+		_ = json.NewEncoder(w).Encode(res)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(models.Response{Message: msg, Code: code})
 }

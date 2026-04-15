@@ -17,8 +17,10 @@ func HandlerRoutes() (*mux.Router) {
 	router = PursueTypeRoutes(router)
 	router = TestTypeRoutes(router)
 	router = DegreeRoutes(router)
+	router = JerarquiaRoutes(router)
 	router = StudyPlanRoutes(router)
 	router = StudentRoutes(router)
+	router = TeacherRoutes(router)
 
 	return router
 }

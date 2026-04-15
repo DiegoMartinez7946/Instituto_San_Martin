@@ -31,14 +31,14 @@ const Login = () => {
 
   const loginEvent = async (e) => {
     const result = await login(globalDispatch, e);
-    result.data.code === 400 ? showError(result.data.message, 'danger') : navigate('/main');
+    result.data.code === 400 ? showError(result.data.message, 'danger') : navigate('/home');
   };
 
   return (
     <Container className={styles.container}>
       { error }
       <Row>
-        <h1>Login</h1>
+        <h1>home</h1>
       </Row>
       <Row className="justify-content-center">
         <Col xs lg="4">

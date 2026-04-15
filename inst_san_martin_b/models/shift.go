@@ -9,6 +9,6 @@ import (
 /***************************************************************/
 /* Shift model for the mongo DB */
 type Shift struct {
-	ID primitive.ObjectID `bson:"_id,omitempty" json:""`
-	Type string `bson:"type" json:"type,omitempty"`
+	ID   primitive.ObjectID `bson:"_id,omitempty" json:"ID"`
+	Type string             `bson:"type" json:"type,omitempty"`
 }

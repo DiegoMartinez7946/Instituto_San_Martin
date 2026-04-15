@@ -13,6 +13,8 @@ export default (state, action) => {
         const pid = action.payload.id || action.payload.ID;
         if (did === pid) {
           d.name = action.payload.name;
+          d.nivel = action.payload.nivel;
+          d.resolucionId = action.payload.resolucionId;
         }
         return d;
       });

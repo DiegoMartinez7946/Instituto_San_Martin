@@ -61,18 +61,23 @@ const Shift = () => {
   }, [globalState]);
 
   const saveEventHandler = async (e) => {
-    const result = e.ID === '' ?
-      await addShift(globalDispatch, e) :
-      await updateShift(globalDispatch, e);
-   
-    buildNotification(result); 
+    const result =
+      e.ID === '' ? await addShift(globalDispatch, e) : await updateShift(globalDispatch, e);
+
+    buildNotification(result);
+    const codeNum = result && result.code !== undefined ? Number(result.code) : NaN;
+    if (codeNum !== 200 && codeNum !== 201) {
+      return result;
+    }
     setDataShifts(getAllShifts(globalDispatch));
-    setShow(current => !current);
+    setShow((current) => !current);
     setDataRow('');
+    return result;
   };
 
   const addShiftEvent = () => {
-    setShow(current => !current);
+    setDataRow('');
+    setShow((current) => !current);
   };
 
   const closeShiftEvent = () => {
@@ -115,7 +120,7 @@ const Shift = () => {
         <br />  
         <Row>
           <Col xs lg="2"></Col>
-          <Col>
+          <Col className="min-w-0">
             <Table
               key={'shift'}
               tableEvents={(e, d) => tableEvents(e, d)}

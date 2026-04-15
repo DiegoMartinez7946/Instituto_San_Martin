@@ -47,6 +47,7 @@ const PasswordChange = () => {
   const eventHandler = async (e) => {
     const result = await changePassword(globalDispatch, e);
     buildNotification(result);
+    return result;
   };
 
   return (

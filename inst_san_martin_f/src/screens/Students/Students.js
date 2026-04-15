@@ -4,12 +4,19 @@ import { Button, Container, Row, Col } from 'react-bootstrap';
 import ModalStudent from './Modal/ModalStudent';
 import Table from '../../components/Table/Table';
 import Notification from '../../components/Notification/Notification';
+import ConfirmChangeEstadoModal from '../../components/ConfirmChangeEstadoModal/ConfirmChangeEstadoModal';
 
 import { useGlobal } from '../../context/Global/GlobalProvider';
 import { getDegree } from '../../context/Global/actions/DegreeActions';
-import { getStudents, addStudent, updateStudent } from '../../context/Global/actions/StudentActions';
+import {
+  getStudents,
+  addStudent,
+  updateStudent,
+  changeActiveStudent
+} from '../../context/Global/actions/StudentActions';
 
 import styles from './Students.module.css';
+import { etiquetaNivel } from '../../constant/nivelesAcademicos';
 
 const degreeNameById = (degrees, hexId) => {
   const d = (degrees || []).find(x => (x.id || x.ID) === hexId);
@@ -24,7 +31,9 @@ const buildTableRows = (students, degrees) =>
     telefono: s.phone || '',
     dni: s.dni,
     direccion: s.address || '',
-    carreras: (s.degreeIds || []).map(did => degreeNameById(degrees, did)).join(', ')
+    nivelAprobado: s.nivelAprobado ? etiquetaNivel(s.nivelAprobado) : '—',
+    carreras: (s.degreeIds || []).map(did => degreeNameById(degrees, did)).join(', '),
+    estado: s.active !== false
   }));
 
 const Students = () => {
@@ -33,6 +42,8 @@ const Students = () => {
   const [show, setShow] = useState(false);
   const [dataRow, setDataRow] = useState(null);
   const [error, setError] = useState(null);
+  const [activeConfirm, setActiveConfirm] = useState(null);
+  const [activeConfirmLoading, setActiveConfirmLoading] = useState(false);
 
   const showError = (message, type) => {
     message
@@ -72,21 +83,33 @@ const Students = () => {
   }, [globalDispatch]);
 
   const saveEventHandler = async (e) => {
-    const isNew = !e.id;
-    const result = isNew
-      ? await addStudent(globalDispatch, e)
-      : await updateStudent(globalDispatch, e);
+    try {
+      const isNew = !e.id;
+      const result = isNew
+        ? await addStudent(globalDispatch, e)
+        : await updateStudent(globalDispatch, e);
 
-    buildNotification(result);
-    const codeNum = result && result.code !== undefined && result.code !== null
-      ? Number(result.code)
-      : NaN;
-    if (codeNum !== 200 && codeNum !== 201) {
-      return;
+      buildNotification(result);
+      const codeNum =
+        result && result.code !== undefined && result.code !== null
+          ? Number(result.code)
+          : NaN;
+      if (codeNum !== 200 && codeNum !== 201) {
+        return result;
+      }
+      await getStudents(globalDispatch);
+      setShow(false);
+      setDataRow(null);
+      return result;
+    } catch (err) {
+      const data = err.response && err.response.data;
+      const fail =
+        data && data.message
+          ? { ...data, code: data.code || err.response.status }
+          : { message: err.message || 'Error de red', code: 400 };
+      buildNotification(fail);
+      return fail;
     }
-    await getStudents(globalDispatch);
-    setShow(false);
-    setDataRow(null);
   };
 
   const addStudentEvent = () => {
@@ -105,6 +128,37 @@ const Students = () => {
       setDataRow(full || row);
       setShow(true);
     }
+    if (ev === 'check') {
+      const full = (globalState.students || []).find((s) => s.id === row.idAlumno);
+      const cur = full ? full.active !== false : row.estado === true;
+      setActiveConfirm({
+        id: row.idAlumno,
+        name: row.nombre || '',
+        fromActive: cur,
+        toActive: !cur
+      });
+    }
+  };
+
+  const confirmStudentActive = async () => {
+    if (!activeConfirm) return;
+    setActiveConfirmLoading(true);
+    const result = await changeActiveStudent(globalDispatch, {
+      id: activeConfirm.id,
+      active: activeConfirm.toActive
+    });
+    buildNotification(result);
+    setActiveConfirmLoading(false);
+    const codeNum = result && result.code !== undefined ? Number(result.code) : NaN;
+    if (codeNum === 200) {
+      setDataRow((prev) => {
+        if (!prev || prev.id !== activeConfirm.id) return prev;
+        return { ...prev, active: activeConfirm.toActive };
+      });
+      setActiveConfirm(null);
+    } else if (codeNum === 199) {
+      setActiveConfirm(null);
+    }
   };
 
   const tableData = useMemo(
@@ -114,7 +168,7 @@ const Students = () => {
 
   return (
     <React.Fragment>
-      <Container className={styles.container}>
+      <Container fluid className={styles.container}>
         {error}
         <Row>
           <h1>Alumnos</h1>
@@ -134,21 +188,19 @@ const Students = () => {
           </Col>
         </Row>
         <br />
-        <Row>
-          <Col xs lg="1" />
-          <Col>
+        <Row className={styles.tableRowWrap}>
+          <Col xs={12} className="px-2 px-md-3 min-w-0">
             {tableData.length > 0 ? (
               <Table
                 key="students-table"
                 tableEvents={(e, d) => tableEvents(e, d)}
                 data={tableData}
-                actions="e"
+                actions="ec"
               />
             ) : (
               <p className="text-muted">No hay alumnos registrados.</p>
             )}
           </Col>
-          <Col xs lg="1" />
         </Row>
       </Container>
       <ModalStudent
@@ -157,6 +209,21 @@ const Students = () => {
         saveEvent={(e) => saveEventHandler(e)}
         data={dataRow}
         degrees={globalState.degrees || []}
+        changeActive={async (payload) => {
+          const result = await changeActiveStudent(globalDispatch, payload);
+          buildNotification(result);
+          return result;
+        }}
+      />
+      <ConfirmChangeEstadoModal
+        show={!!activeConfirm}
+        onHide={() => !activeConfirmLoading && setActiveConfirm(null)}
+        kind="alumno"
+        itemName={activeConfirm ? activeConfirm.name : ''}
+        fromActive={activeConfirm ? activeConfirm.fromActive : true}
+        toActive={activeConfirm ? activeConfirm.toActive : true}
+        onConfirm={confirmStudentActive}
+        confirming={activeConfirmLoading}
       />
     </React.Fragment>
   );

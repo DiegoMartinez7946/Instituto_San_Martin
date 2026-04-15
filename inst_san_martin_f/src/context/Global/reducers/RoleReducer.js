@@ -1,34 +1,30 @@
+const asList = (roles) => (Array.isArray(roles) ? roles : []);
+
 export default (state, action) => {
-  switch(action.type) {
+  const list = asList(state.roles);
+
+  switch (action.type) {
     case 'ADD_ROLE':
-      const rol = action.payload;
-      const newRoles = state.roles;
-      newRoles.push(rol);
       return {
         ...state,
-        roles: newRoles
+        roles: [...list, action.payload]
       };
     case 'UPDATE_ROLE':
-      const updatedRoles = state.roles.map(r => {
-        if (r.ID === action.payload.ID) {
-          r.type = action.payload.type;
-        }
-        return r;
-      });
       return {
         ...state,
-        roles: updatedRoles 
+        roles: list.map((r) =>
+          r.ID === action.payload.ID ? { ...r, type: action.payload.type } : r
+        )
       };
     case 'DELETE_ROLE':
-      const deletedRoles = state.roles.filter(f => f.ID !== action.payload.ID)
       return {
         ...state,
-        roles: deletedRoles
+        roles: list.filter((f) => f.ID !== action.payload.ID)
       };
     case 'GET_ROLE':
       return {
         ...state,
-        roles: action.payload
+        roles: Array.isArray(action.payload) ? action.payload : []
       };
     default:
       return state;

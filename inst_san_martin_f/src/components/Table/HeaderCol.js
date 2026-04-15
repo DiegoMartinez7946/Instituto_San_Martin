@@ -4,12 +4,23 @@ import { transformTitles } from '../../utils/transformTitles';
 
 import styles from './Table.module.css';
 
-const HeaderCol = ({colNumber, data}) => {
+const HeaderCol = ({ colNumber, data, wide, nowrap, actionsHeader }) => {
   return (
-    <Col className={colNumber > 0 ? '' : styles.hiddenDiv}>
+    <Col
+      xs={actionsHeader ? 'auto' : undefined}
+      className={[
+        colNumber > 0 ? '' : styles.hiddenDiv,
+        !actionsHeader && !nowrap ? styles.colCell : '',
+        wide ? styles.colWide : '',
+        nowrap ? styles.colNoWrap : '',
+        actionsHeader ? styles.BodyColActions : ''
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <div className={styles.HeaderCol}>{transformTitles(data)}</div>
     </Col>
-  ); 
-}
+  );
+};
 
 export default HeaderCol;

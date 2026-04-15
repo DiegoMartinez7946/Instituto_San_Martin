@@ -8,6 +8,7 @@ import  ShiftReducer from './reducers/ShiftReducer';
 import  TestTypeReducer from './reducers/TestTypeReducer';
 import  UserReducer  from './reducers/UserReducer';
 import  StudentReducer from './reducers/StudentReducer';
+import  TeacherReducer from './reducers/TeacherReducer';
 import { GlobalState } from './GlobalState';
 
 export const useGlobal = () => {
@@ -20,6 +21,7 @@ export const GlobalProvider = ({ children }) => {
   const GlobalReducer = combineReducers({
     degrees: DegreeReducer,
     students: StudentReducer,
+    teachers: TeacherReducer,
     pursuetypes: PursueTypeReducer,
     roles: RoleReducer,
     shifts: ShiftReducer,

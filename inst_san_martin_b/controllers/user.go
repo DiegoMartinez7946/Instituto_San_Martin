@@ -4,10 +4,12 @@ package controllers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/benjacifre10/san_martin_b/models"
 	"github.com/benjacifre10/san_martin_b/services"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 /***************************************************************/
@@ -86,6 +88,16 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	u.Email = strings.TrimSpace(u.Email)
+	if msg, ok := services.ValidateCorreoElectronicoRequired(u.Email); !ok {
+		m := models.Response{
+			Message: msg,
+			Code:    400,
+			Ok:      false,
+		}
+		json.NewEncoder(w).Encode(m)
+		return
+	}
 
 	res, exists, err := services.LoginService(u)
 	if exists == false || err!= nil {
@@ -117,10 +129,14 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	// call the services
 	result, status, err := services.GetUsersService()
 	if status == false {
-		m := models.Response {
-			Message: "No se puedo obtener la lista de usuarios" + err.Error(),
-			Code: 400,
-			Ok: false,
+		errMsg := ""
+		if err != nil {
+			errMsg = err.Error()
+		}
+		m := models.Response{
+			Message: "No se puedo obtener la lista de usuarios" + errMsg,
+			Code:    400,
+			Ok:      false,
 		}
 		json.NewEncoder(w).Encode(m)
 		return
@@ -200,4 +216,74 @@ func BlankPassword(w http.ResponseWriter, r *http.Request) {
 		Code: code,
 	}
 	json.NewEncoder(w).Encode(res)
+}
+
+func mergeUserShiftSliceFromBody(ids []string, legacy string) []string {
+	out := make([]string, 0, len(ids)+1)
+	for _, x := range ids {
+		if t := strings.TrimSpace(x); t != "" {
+			out = append(out, t)
+		}
+	}
+	if t := strings.TrimSpace(legacy); t != "" {
+		out = append(out, t)
+	}
+	return out
+}
+
+type userUpdateBody struct {
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	DNI      string   `json:"dni"`
+	Address  string   `json:"address"`
+	Phone    string   `json:"phone"`
+	Email    string   `json:"email"`
+	Password string   `json:"password"`
+	UserType string   `json:"userType"`
+	ShiftID  string   `json:"shiftId"`   // legacy: un solo id
+	ShiftIDs []string `json:"shiftIds"` // preferido
+}
+
+/* UpdateUser PUT /user */
+func UpdateUser(w http.ResponseWriter, r *http.Request) {
+	var body userUpdateBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		_ = json.NewEncoder(w).Encode(models.Response{Message: "Parametros invalidos", Code: 400, Ok: false})
+		return
+	}
+	shiftIDs := mergeUserShiftSliceFromBody(body.ShiftIDs, body.ShiftID)
+	msg, code, err := services.UpdateUserService(body.ID, body.Name, body.DNI, body.Address, body.Phone, body.Email, body.Password, body.UserType, shiftIDs)
+	if err != nil || code != 200 {
+		_ = json.NewEncoder(w).Encode(models.Response{Message: msg, Code: code, Ok: false})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(models.Response{Message: msg, Code: code, Ok: true})
+}
+
+type userActivePayload struct {
+	ID     string `json:"id"`
+	Active bool   `json:"active"`
+}
+
+/* ChangeActiveUser PUT /user/active */
+func ChangeActiveUser(w http.ResponseWriter, r *http.Request) {
+	var p userActivePayload
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		_ = json.NewEncoder(w).Encode(models.Response{Message: "Parametros invalidos", Code: 400})
+		return
+	}
+	oid, err := primitive.ObjectIDFromHex(p.ID)
+	if err != nil {
+		_ = json.NewEncoder(w).Encode(models.Response{Message: "Id de usuario invalido", Code: 400})
+		return
+	}
+	msg, code, err := services.UpdateUserActiveService(oid, p.Active)
+	if err != nil || code != 200 {
+		_ = json.NewEncoder(w).Encode(models.Response{Message: "Error al actualizar el estado. " + msg, Code: code})
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(models.Response{Message: msg, Code: code})
 }

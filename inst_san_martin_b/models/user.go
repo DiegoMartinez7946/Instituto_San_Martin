@@ -10,12 +10,20 @@ import (
 
 /* User model for the mongo DB */
 type User struct {
-	ID primitive.ObjectID `bson:"_id,omitempty" json:""`
-	Email string `bson:"email" json:"email"`
-	Password string `bson:"password" json:"password,omitempty"`
-	UserType string `bson:"usertype" json:"userType,omitempty"`
-	CreatedAt time.Time `bson:"createdat" json:"createdAt,omitempty"`
-	UpdatedAt time.Time `bson:"updatedat" json:"updatedAt,omitempty"`
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"-"`
+	Email     string             `bson:"email" json:"email"`
+	Password  string             `bson:"password" json:"password,omitempty"`
+	UserType  string             `bson:"usertype" json:"userType,omitempty"`
+	Name      string             `bson:"name" json:"name,omitempty"`
+	DNI       string             `bson:"dni" json:"dni,omitempty"`
+	Address   string             `bson:"address" json:"address,omitempty"`
+	Phone     string             `bson:"phone" json:"phone,omitempty"`
+	// shiftid legacy (un solo turno); shiftids es el campo actual
+	ShiftID   string   `bson:"shiftid,omitempty" json:"shiftId,omitempty"`
+	ShiftIDs []string `bson:"shiftids,omitempty" json:"shiftIds,omitempty"`
+	Active    bool               `bson:"active" json:"active"`
+	CreatedAt time.Time          `bson:"createdat" json:"createdAt,omitempty"`
+	UpdatedAt time.Time          `bson:"updatedat" json:"updatedAt,omitempty"`
 }
 
 /* LoginResponse have the token which return in the login */
@@ -25,9 +33,23 @@ type LoginResponse struct {
 
 /* UserResponse get the user info */
 type UserResponse struct {
-	ID primitive.ObjectID `bson:"_id,omitempty" json:""`
-	Email string `bson:"email" json:"email"`
-	Role string `bson:"role" json:"role,omitempty"`
+	ID    primitive.ObjectID `bson:"_id,omitempty" json:""`
+	Email string             `bson:"email" json:"email"`
+	Role  string             `bson:"role" json:"role,omitempty"`
+}
+
+/* UserListRow fila de listado de usuarios (administración) */
+type UserListRow struct {
+	ID      string `json:"id"`
+	Email   string `json:"email"`
+	Role    string `json:"role"`
+	Name    string `json:"name"`
+	DNI     string `json:"dni"`
+	Address string `json:"address"`
+	Phone     string `json:"phone"`
+	ShiftIDs  []string `json:"shiftIds,omitempty"`
+	ShiftType string   `json:"shiftType,omitempty"`
+	Active    bool   `json:"active"`
 }
 
 /* Claim is the struct to process the jwt */

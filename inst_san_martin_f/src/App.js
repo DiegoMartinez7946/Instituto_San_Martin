@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 
 import Protected from './utils/Protected';
 import Logout from './utils/Logout';
@@ -8,6 +8,7 @@ import Login from './screens/Login/Login';
 import Main from './screens/Main/Main';
 import Degree from './screens/Degree/Degree';
 import Students from './screens/Students/Students';
+import Teachers from './screens/Teachers/Teachers';
 import Roles from './screens/Roles/Roles';
 import Shift from './screens/Shift/Shift';
 import TestType from './screens/TestType/TestType';
@@ -26,7 +27,8 @@ const App = () => {
       <Route exact path="/" element={<Home />} />
       <Route exact path="/login" element={<Login/>} />
       <Route exact path="/logout" element={<Logout />} />
-      <Route exact path="/main" element={<Protected><Main/></Protected>} />
+      <Route path="/main" element={<Navigate to="/home" replace />} />
+      <Route path="/home" element={<Protected><Main /></Protected>} />
       <Route exact path="/users" element={<Protected><Users/></Protected>} />
       <Route exact path="/roles" element={<Protected><Roles/></Protected>} />
       <Route exact path="/shift" element={<Protected><Shift/></Protected>} />
@@ -35,6 +37,7 @@ const App = () => {
       <Route exact path="/passwordblank" element={<Protected><PasswordBlank/></Protected>} />
       <Route exact path="/passwordchange" element={<Protected><PasswordChange/></Protected>} />
       <Route exact path="/students" element={<Protected><Students/></Protected>} />
+      <Route exact path="/teachers" element={<Protected><Teachers/></Protected>} />
       <Route exact path="/degree" element={<Protected><Degree/></Protected>} />
     </Routes>
   );

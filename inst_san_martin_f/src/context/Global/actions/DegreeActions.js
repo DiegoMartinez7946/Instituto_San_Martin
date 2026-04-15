@@ -8,11 +8,18 @@ export const addDegree = async (dispatch, item) => {
       'Authorization': `Bearer${access_token}`
     },
   }
-  const result = await clientAxios.post('/degree', 
-    { name: item.name, active: true }, options);
+  const result = await clientAxios.post('/degree',
+    {
+      name: item.name,
+      active: true,
+      nivel: item.nivel,
+      resolucionId: item.resolucionId
+    },
+    options);
   item.id = result.data.data || '';
   item.ID = item.id;
- 
+  item.active = true;
+
   dispatch({
     type: 'ADD_DEGREE',
     payload: item
@@ -29,8 +36,14 @@ export const updateDegree = async (dispatch, item) => {
       'Authorization': `Bearer${access_token}`
     },
   };
-  const result = await clientAxios.put('/degree', 
-    { id: item.id || item.ID, name: item.name }, options);
+  const result = await clientAxios.put('/degree',
+    {
+      id: item.id || item.ID,
+      name: item.name,
+      nivel: item.nivel,
+      resolucionId: item.resolucionId
+    },
+    options);
 
   dispatch({
     type: 'UPDATE_DEGREE',

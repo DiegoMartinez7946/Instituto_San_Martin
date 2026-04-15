@@ -3,25 +3,24 @@ import { Modal } from 'react-bootstrap';
 
 import FormStudent from '../Form/FormStudent';
 
-const ModalStudent = ({ show, handleClose, saveEvent, data, degrees }) => {
+const ModalStudent = ({ show, handleClose, saveEvent, data, degrees, changeActive }) => {
 
-  const eventHandler = (e) => {
-    saveEvent(e);
-  };
+  const eventHandler = async (e) => saveEvent(e);
 
   const isEdit = data && typeof data === 'object' && data.id;
 
   return (
-    <Modal show={show} onHide={handleClose} centered size="lg">
+    <Modal show={show} onHide={handleClose} centered size="lg" scrollable>
       <Modal.Header closeButton>
         <Modal.Title>{isEdit ? 'Editar alumno' : 'Agregar alumno'}</Modal.Title>
       </Modal.Header>
-      <Modal.Body>
+      <Modal.Body style={{ overflowX: 'hidden', maxWidth: '100%' }}>
         <FormStudent
           key={isEdit ? data.id : 'new'}
           dataEntry={data}
           degrees={degrees}
           saveData={(e) => eventHandler(e)}
+          changeActive={changeActive}
         />
       </Modal.Body>
     </Modal>

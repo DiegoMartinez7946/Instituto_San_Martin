@@ -2,10 +2,29 @@ package services
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/benjacifre10/san_martin_b/db"
 	"github.com/benjacifre10/san_martin_b/models"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+var allowedDegreeNiveles = map[string]struct{}{
+	"inicial":       {},
+	"primario":      {},
+	"secundario":    {},
+	"terciario":     {},
+	"universitario": {},
+}
+
+func normalizeNivel(n string) string {
+	return strings.ToLower(strings.TrimSpace(n))
+}
+
+func isAllowedDegreeNivel(n string) bool {
+	_, ok := allowedDegreeNiveles[normalizeNivel(n)]
+	return ok
+}
 
 /***************************************************************/
 /***************************************************************/
@@ -40,15 +59,27 @@ func InsertDegreeService(d models.Degree) (string, int, error) {
 		return "No puede registrar la carrera con numeros", 199, errRegexp
 	}
 
-	// verify if the name has already exists
-	_, check, errorCheck := db.CheckExistDegree(d.Name)
-	if check == true {
-		return "Ya existe esa carrera en el sistema", 199, errorCheck
+	if db.IsDegreeNameTakenByOther(d.Name, primitive.ObjectID{}) {
+		return "Ya existe esa carrera en el sistema", 199, nil
 	}
 
-	row := models.Degree {
-		Name: d.Name,
-		Active: d.Active,
+	nivel := normalizeNivel(d.Nivel)
+	if !isAllowedDegreeNivel(nivel) {
+		return "Debe seleccionar un nivel valido para la carrera", 199, nil
+	}
+	resolucion := strings.TrimSpace(d.ResolucionID)
+	if resolucion == "" {
+		return "Debe ingresar el Resolucion ID", 199, nil
+	}
+	if db.IsResolucionIDTakenByOther(resolucion, primitive.ObjectID{}) {
+		return "Ya existe otra carrera con ese Resolucion ID", 199, nil
+	}
+
+	row := models.Degree{
+		Name:         d.Name,
+		Nivel:        nivel,
+		ResolucionID: resolucion,
+		Active:       d.Active,
 	}
 
 	msg, err := db.InsertDegreeDB(row)
@@ -73,11 +104,23 @@ func UpdateDegreeService(d models.Degree) (string, int, error) {
 		return "No puede actualizar la carrera con numeros", 199, errRegexp
 	}
 
-	// verify if the type has already exists
-	_, check, errorCheck := db.CheckExistDegree(d.Name)
-	if check == true {
-		return "Ya existe esa carrera en el sistema", 199, errorCheck
+	if db.IsDegreeNameTakenByOther(d.Name, d.ID) {
+		return "Ya existe esa carrera en el sistema", 199, nil
 	}
+
+	nivel := normalizeNivel(d.Nivel)
+	if !isAllowedDegreeNivel(nivel) {
+		return "Debe seleccionar un nivel valido para la carrera", 199, nil
+	}
+	resolucion := strings.TrimSpace(d.ResolucionID)
+	if resolucion == "" {
+		return "Debe ingresar el Resolucion ID", 199, nil
+	}
+	if db.IsResolucionIDTakenByOther(resolucion, d.ID) {
+		return "Ya existe otra carrera con ese Resolucion ID", 199, nil
+	}
+	d.Nivel = nivel
+	d.ResolucionID = resolucion
 
 	_, err := db.UpdateDegreeDB(d)
 	if err != nil {

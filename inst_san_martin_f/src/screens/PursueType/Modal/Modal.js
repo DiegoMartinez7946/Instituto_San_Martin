@@ -3,18 +3,17 @@ import { Modal } from 'react-bootstrap';
 
 import FormPursueType from '../Form/Form';
 
-const ModalPursueType = ({show, handleClose, saveEvent, data}) => {
+const ModalPursueType = ({ show, handleClose, saveEvent, data }) => {
+  const eventHandler = async (e) => saveEvent(e);
 
-  const eventHandler = (e) => {
-    saveEvent(e);
-  };
+  const isEdit = data && typeof data === 'object' && data.ID;
 
   return (
-    <Modal show={show} onHide={handleClose} centered>
+    <Modal show={show} onHide={handleClose} centered size="lg" scrollable>
       <Modal.Header closeButton>
-        <Modal.Title>{ data ? 'Editar Modalidad' : 'Agregar Modalidad'}</Modal.Title>
+        <Modal.Title>{isEdit ? 'Editar Modalidad' : 'Agregar Modalidad'}</Modal.Title>
       </Modal.Header>
-      <Modal.Body>
+      <Modal.Body style={{ overflowX: 'hidden', maxWidth: '100%' }}>
         <FormPursueType 
           dataEntry={data}
           saveData={(e) => eventHandler(e)}

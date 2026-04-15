@@ -9,7 +9,9 @@ import (
 /***************************************************************/
 /* Degree model for the mongo DB */
 type Degree struct {
-	ID     primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Name   string             `bson:"name" json:"name,omitempty"`
-	Active bool               `bson:"active" json:"active"`
+	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Name         string             `bson:"name" json:"name,omitempty"`
+	Nivel        string             `bson:"nivel" json:"nivel,omitempty"`
+	ResolucionID string             `bson:"resolucionid" json:"resolucionId,omitempty"`
+	Active       bool               `bson:"active" json:"active"`
 }

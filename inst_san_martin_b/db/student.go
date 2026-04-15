@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/benjacifre10/san_martin_b/config"
@@ -12,10 +13,25 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+var ensureStudentActiveField sync.Once
+
+func ensureStudentActiveDefaults(ctx context.Context) {
+	ensureStudentActiveField.Do(func() {
+		db := config.MongoConnection.Database("san_martin")
+		collection := db.Collection("student")
+		_, err := collection.UpdateMany(ctx, bson.M{"active": bson.M{"$exists": false}}, bson.M{"$set": bson.M{"active": true}})
+		if err != nil {
+			log.Println("ensure student active:", err)
+		}
+	})
+}
+
 /* GetStudentsDB get all students */
 func GetStudentsDB() ([]*models.Student, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
+
+	ensureStudentActiveDefaults(ctx)
 
 	db := config.MongoConnection.Database("san_martin")
 	collection := db.Collection("student")
@@ -49,14 +65,16 @@ func InsertStudentDB(s models.Student) (string, error) {
 	collection := db.Collection("student")
 
 	row := bson.M{
-		"name":      s.Name,
-		"email":     s.Email,
-		"phone":     s.Phone,
-		"dni":       s.DNI,
-		"address":   s.Address,
-		"degreeids": s.DegreeIDs,
-		"createdat": s.CreatedAt,
-		"updatedat": s.UpdatedAt,
+		"name":          s.Name,
+		"email":         s.Email,
+		"phone":         s.Phone,
+		"dni":           s.DNI,
+		"address":       s.Address,
+		"nivelaprobado": s.NivelAprobado,
+		"degreeids":     s.DegreeIDs,
+		"active":        s.Active,
+		"createdat":     s.CreatedAt,
+		"updatedat":     s.UpdatedAt,
 	}
 
 	result, err := collection.InsertOne(ctx, row)
@@ -79,13 +97,15 @@ func UpdateStudentDB(s models.Student) (bool, error) {
 	filter := bson.M{"_id": s.ID}
 	update := bson.M{
 		"$set": bson.M{
-			"name":      s.Name,
-			"email":     s.Email,
-			"phone":     s.Phone,
-			"dni":       s.DNI,
-			"address":   s.Address,
-			"degreeids": s.DegreeIDs,
-			"updatedat": s.UpdatedAt,
+			"name":          s.Name,
+			"email":         s.Email,
+			"phone":         s.Phone,
+			"dni":           s.DNI,
+			"address":       s.Address,
+			"nivelaprobado": s.NivelAprobado,
+			"degreeids":     s.DegreeIDs,
+			"active":        s.Active,
+			"updatedat":     s.UpdatedAt,
 		},
 	}
 
@@ -115,4 +135,24 @@ func FindStudentByDNIDB(dni string, excludeID primitive.ObjectID) (models.Studen
 		return st, false
 	}
 	return st, st.DNI != ""
+}
+
+/* UpdateStudentActiveDB solo estado activo/inactivo */
+func UpdateStudentActiveDB(id primitive.ObjectID, active bool) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	db := config.MongoConnection.Database("san_martin")
+	collection := db.Collection("student")
+
+	_, err := collection.UpdateOne(ctx, bson.M{"_id": id}, bson.M{
+		"$set": bson.M{
+			"active":    active,
+			"updatedat": time.Now(),
+		},
+	})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }

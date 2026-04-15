@@ -20,7 +20,9 @@ const buildStudentBody = (item) => {
     phone: item.phone !== undefined && item.phone !== null ? String(item.phone) : '',
     dni: item.dni != null ? String(item.dni) : '',
     address: item.address !== undefined && item.address !== null ? String(item.address) : '',
-    degreeIds: Array.isArray(item.degreeIds) ? item.degreeIds : []
+    nivelAprobado: item.nivelAprobado != null ? String(item.nivelAprobado).trim() : '',
+    degreeIds: Array.isArray(item.degreeIds) ? item.degreeIds : [],
+    active: item.active === false ? false : true
   };
 };
 
@@ -38,6 +40,18 @@ export const updateStudent = async (dispatch, item) => {
   return result.data;
 };
 
+export const changeActiveStudent = async (dispatch, item) => {
+  const result = await clientAxios.put(
+    '/student/active',
+    { id: item.id != null ? String(item.id) : '', active: item.active === true },
+    authHeaders()
+  );
+  if (Number(result.data.code) === 200) {
+    await getStudents(dispatch);
+  }
+  return result.data;
+};
+
 export const getStudents = async (dispatch) => {
   const result = await clientAxios.get('/student', authHeaders());
   const list = result.data.data || [];
@@ -48,7 +62,9 @@ export const getStudents = async (dispatch) => {
     phone: s.phone || '',
     dni: s.dni,
     address: s.address || '',
-    degreeIds: s.degreeIds || []
+    nivelAprobado: s.nivelAprobado || '',
+    degreeIds: s.degreeIds || [],
+    active: s.active !== false
   }));
   dispatch({
     type: 'GET_STUDENTS',

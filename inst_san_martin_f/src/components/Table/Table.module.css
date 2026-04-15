@@ -3,22 +3,111 @@
   background-color: #17a2b8;
   border-top-left-radius: 25px;
   border-top-right-radius: 25px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0 10px 14px;
+  /* auto: si no entra todo, se puede desplazar horizontalmente (Acciones queda sticky a la derecha) */
+  overflow-x: auto;
+}
+
+/* Sobrescribe .row de Bootstrap (flex-wrap: wrap) para que Acciones no baje bajo Nombre */
+.Table :global(.row).tableRow,
+.Table .tableRow {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch;
+  margin-left: 0;
+  margin-right: 0;
+  width: 100%;
+  min-width: 0;
 }
 
 .HeaderCol {
   background-color: #17a2b8;
-  text-align: center;
+  text-align: left;
   border-bottom: 2px solid white;
-  padding-bottom: 5px;
+  padding: 8px 10px 6px;
   font-weight: bold;
   color: white;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .BodyCol {
   background-color: #17a2b8;
-  text-align: center;
-  margin: 5px 0;
+  text-align: left;
+  margin: 4px 0;
+  padding: 6px 8px;
   color: white;
+  /* break-word rompe en cualquier letra si la columna es demasiado angosta → texto “vertical” */
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.BodyColActions {
+  text-align: center;
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  min-width: 5.75rem;
+  max-width: none;
+  width: auto !important;
+  align-self: center;
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  background-color: #17a2b8;
+  /* Borde sutil en lugar de sombra (evita “mancha” sobre el icono) */
+  border-left: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.BodyColActions svg {
+  filter: none;
+}
+
+/*
+ * Bootstrap (grid) suele poner width:100% en hijos de .row; en esta fila flex eso
+ * estira columnas cortas (Estado) a casi todo el ancho.
+ * Usar .tableRow (módulo) + :global(.row) porque "tableRow" va hasheado.
+ */
+.Table :global(.row).tableRow > * {
+  width: auto !important;
+  box-sizing: border-box;
+}
+
+/* Celdas de datos: mínimo mayor para rol, turno, teléfono, cabeceras */
+.colCell {
+  flex: 1 1 0 !important;
+  min-width: 9.25rem !important;
+  max-width: 100%;
+}
+
+/* Nombre / email */
+.colWide {
+  flex: 2.2 1 13rem !important;
+  min-width: 11.5rem !important;
+  max-width: min(28rem, 38vw);
+}
+
+/* Estado: misma base + selector más específico que la regla anterior (ancho fijo ~ "Inactivo") */
+.colNoWrap {
+  flex-grow: 0 !important;
+  flex-shrink: 0 !important;
+  white-space: nowrap;
+  word-break: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.Table :global(.row).tableRow > .colNoWrap {
+  flex: 0 0 7rem !important;
+  flex-basis: 7rem !important;
+  width: 7rem !important;
+  min-width: 7rem !important;
+  max-width: 7rem !important;
 }
 
 svg {

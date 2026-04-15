@@ -85,18 +85,67 @@ export const addUser = async (dispatch, item) => {
     },
   };
 
+  const shiftIds = Array.isArray(item.shiftIds)
+    ? item.shiftIds.map((x) => String(x).trim()).filter(Boolean)
+    : item.shiftId
+      ? [String(item.shiftId).trim()].filter(Boolean)
+      : [];
+
   const result = await clientAxios.post('/user', {
     email: item.email,
     password: item.password,
-    userType: item.userType
+    userType: item.userType,
+    name: item.name,
+    dni: item.dni,
+    address: item.address || '',
+    phone: item.phone || '',
+    shiftIds
   }, options);
 
-  delete item.password;
+  return result.data;
+};
 
-  dispatch({
-    type: 'ADD_USER',
-    payload: item
-  });
+export const updateUser = async (dispatch, item) => {
+  const access_token = document.cookie.replace("token=", "");
+  const options = {
+    headers: {
+      'Authorization': `Bearer${access_token}`
+    },
+  };
+
+  const shiftIds = Array.isArray(item.shiftIds)
+    ? item.shiftIds.map((x) => String(x).trim()).filter(Boolean)
+    : item.shiftId
+      ? [String(item.shiftId).trim()].filter(Boolean)
+      : [];
+
+  const result = await clientAxios.put('/user', {
+    id: item.id,
+    email: item.email,
+    name: item.name,
+    dni: item.dni,
+    address: item.address || '',
+    phone: item.phone || '',
+    userType: item.userType || '',
+    password: item.password || '',
+    shiftIds
+  }, options);
+
+  return result.data;
+};
+
+export const changeActiveUser = async (dispatch, payload) => {
+  const access_token = document.cookie.replace("token=", "");
+  const options = {
+    headers: {
+      'Authorization': `Bearer${access_token}`
+    },
+  };
+
+  const result = await clientAxios.put('/user/active', {
+    id: payload.id,
+    active: payload.active === true
+  }, options);
 
   return result.data;
 };

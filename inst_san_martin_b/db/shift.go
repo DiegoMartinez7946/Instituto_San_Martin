@@ -96,6 +96,26 @@ func CheckExistShift(typeShift string) (string, bool, error) {
 	return "", false, err
 }
 
+/* ShiftExistsByHexID true si existe un turno con ese ObjectId en hex */
+func ShiftExistsByHexID(hex string) (bool, error) {
+	h := strings.TrimSpace(hex)
+	if h == "" {
+		return false, nil
+	}
+	oid, err := primitive.ObjectIDFromHex(h)
+	if err != nil {
+		return false, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	collection := config.MongoConnection.Database("san_martin").Collection("shift")
+	n, err := collection.CountDocuments(ctx, bson.M{"_id": oid})
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
 /***************************************************************/
 /***************************************************************/
 /* UpdateShiftDB update the shift in the db */
