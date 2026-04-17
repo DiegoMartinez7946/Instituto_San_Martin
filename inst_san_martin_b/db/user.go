@@ -117,8 +117,11 @@ func GetUserDB(email string) (models.UserResponse, bool, error) {
 }
 
 /***************************************************************/
-/* GetUsersDB get the users from db */
-func GetUsersDB(roleType string) ([]models.UserListRow, int, error) {
+/* GetUsersDB get the users from db.
+   Si roleTypesIn tiene elementos, filtra role.type con $in (mayúsculas).
+   Si no, y roleType no está vacío, filtra por un solo tipo.
+   Si ambos vacíos, devuelve todos los usuarios con rol resuelto. */
+func GetUsersDB(roleType string, roleTypesIn []string) ([]models.UserListRow, int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	ensureUserActiveDefaults(ctx)
@@ -151,8 +154,18 @@ func GetUsersDB(roleType string) ([]models.UserListRow, int, error) {
 			"as":           "role",
 		}})
 	condition = append(condition, bson.M{"$unwind": "$role"})
-	if strings.TrimSpace(roleType) != "" {
-		condition = append(condition, bson.M{"$match": bson.M{"role.type": roleType}})
+	if len(roleTypesIn) > 0 {
+		upper := make([]interface{}, 0, len(roleTypesIn))
+		for _, t := range roleTypesIn {
+			if u := strings.TrimSpace(strings.ToUpper(t)); u != "" {
+				upper = append(upper, u)
+			}
+		}
+		if len(upper) > 0 {
+			condition = append(condition, bson.M{"$match": bson.M{"role.type": bson.M{"$in": upper}}})
+		}
+	} else if strings.TrimSpace(roleType) != "" {
+		condition = append(condition, bson.M{"$match": bson.M{"role.type": strings.TrimSpace(strings.ToUpper(roleType))}})
 	}
 
 	condition = append(condition, bson.M{"$addFields": bson.M{
@@ -407,4 +420,55 @@ func ChangePasswordDB(u models.User) (bool, error) {
 	}
 
 	return true, nil
+}
+
+/***************************************************************/
+/* UserRoleTypeByID devuelve role.type (p. ej. ADMINISTRADOR) para un usuario por _id. */
+func UserRoleTypeByID(id primitive.ObjectID) (string, bool, error) {
+	u, ok, err := FindUserByIDDB(id)
+	if err != nil || !ok {
+		return "", false, err
+	}
+	h := strings.TrimSpace(u.UserType)
+	if h == "" {
+		return "", false, nil
+	}
+	r, err := GetRoleDB(h)
+	if err != nil || strings.TrimSpace(r.Type) == "" {
+		return "", false, err
+	}
+	return strings.TrimSpace(r.Type), true, nil
+}
+
+/***************************************************************/
+/* DeleteNonStaffUsersFromCollection elimina documentos en user cuyo rol no sea ADMINISTRADOR ni ADMINISTRATIVO. */
+func DeleteNonStaffUsersFromCollection() (int64, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	coll := config.MongoConnection.Database("san_martin").Collection("role")
+	cur, err := coll.Find(ctx, bson.M{"type": bson.M{"$in": bson.A{"ADMINISTRADOR", "ADMINISTRATIVO"}}})
+	if err != nil {
+		return 0, err
+	}
+	var allowedHex []string
+	for cur.Next(ctx) {
+		var rr models.Role
+		if err := cur.Decode(&rr); err != nil {
+			continue
+		}
+		if !rr.ID.IsZero() {
+			allowedHex = append(allowedHex, rr.ID.Hex())
+		}
+	}
+	_ = cur.Close(ctx)
+	if len(allowedHex) == 0 {
+		return 0, nil
+	}
+	userColl := config.MongoConnection.Database("san_martin").Collection(userCollection)
+	res, err := userColl.DeleteMany(ctx, bson.M{"usertype": bson.M{"$nin": allowedHex}})
+	if err != nil {
+		return 0, err
+	}
+	return res.DeletedCount, nil
 }

@@ -46,6 +46,24 @@ const SideBar = ({ show, click }) => {
               </li>
             </ul> 
           );
+          case "DOCENTE": return (
+            <ul>
+              <li>
+                <NavLink
+                  className={styles.side_bar__link}
+                  to="/passwordchange">
+                  Cambiar Password
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  className={styles.side_bar__link}
+                  to="/logout">
+                  Logout
+                </NavLink>
+              </li>
+            </ul>
+          );
           case "ADMINISTRATIVO": return (
             <ul>
               <li>

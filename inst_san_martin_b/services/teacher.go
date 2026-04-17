@@ -6,6 +6,7 @@ import (
 
 	"github.com/benjacifre10/san_martin_b/db"
 	"github.com/benjacifre10/san_martin_b/models"
+	"github.com/benjacifre10/san_martin_b/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -127,8 +128,8 @@ func GetTeachersService() ([]*models.Teacher, bool) {
 	return list, true
 }
 
-/* InsertTeacherService */
-func InsertTeacherService(t models.Teacher) (string, int, error) {
+/* InsertTeacherService newPortalPwd: contraseña de acceso al portal (opcional; mín. 6 caracteres si se informa). */
+func InsertTeacherService(t models.Teacher, newPortalPwd string) (string, int, error) {
 	if len(t.Name) == 0 || len(t.DNI) == 0 {
 		return "Nombre y DNI son obligatorios", 199, nil
 	}
@@ -157,6 +158,18 @@ func InsertTeacherService(t models.Teacher) (string, int, error) {
 		return msg, 199, nil
 	}
 
+	np := strings.TrimSpace(newPortalPwd)
+	if np != "" {
+		if len(np) < 6 {
+			return "La contraseña de acceso al portal debe tener al menos 6 caracteres", 199, nil
+		}
+		h, errH := utils.EncryptPassword(np)
+		if errH != nil {
+			return "Error al cifrar la contraseña", 400, errH
+		}
+		t.Password = h
+	}
+
 	now := time.Now()
 	t.CreatedAt = now
 	t.UpdatedAt = now
@@ -167,8 +180,8 @@ func InsertTeacherService(t models.Teacher) (string, int, error) {
 	return id, 201, nil
 }
 
-/* UpdateTeacherService */
-func UpdateTeacherService(t models.Teacher) (string, int, error) {
+/* UpdateTeacherService newPortalPwd: si no está vacío, actualiza contraseña de portal del docente. */
+func UpdateTeacherService(t models.Teacher, newPortalPwd string) (string, int, error) {
 	if t.ID.IsZero() {
 		return "Falta el id del docente", 199, nil
 	}
@@ -201,9 +214,22 @@ func UpdateTeacherService(t models.Teacher) (string, int, error) {
 	}
 
 	t.UpdatedAt = time.Now()
+	t.Password = ""
 	okDB, err := db.UpdateTeacherDB(t)
 	if err != nil || !okDB {
 		return "No se pudo actualizar el docente", 400, err
+	}
+	if np := strings.TrimSpace(newPortalPwd); np != "" {
+		if len(np) < 6 {
+			return "La contraseña de acceso al portal debe tener al menos 6 caracteres", 199, nil
+		}
+		h, errH := utils.EncryptPassword(np)
+		if errH != nil {
+			return "Error al cifrar la contraseña", 400, errH
+		}
+		if errP := db.UpdateTeacherPasswordHashDB(t.ID, h); errP != nil {
+			return "Docente actualizado pero no se pudo guardar la contraseña", 400, errP
+		}
 	}
 	return "El docente se actualizo correctamente", 200, nil
 }

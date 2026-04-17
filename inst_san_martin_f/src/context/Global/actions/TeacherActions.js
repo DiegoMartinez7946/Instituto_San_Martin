@@ -25,7 +25,9 @@ const authHeaders = () => {
   };
 };
 
-const buildTeacherBody = (item) => ({
+const buildTeacherBody = (item) => {
+  const np = item.newPassword != null ? String(item.newPassword).trim() : '';
+  const body = {
   name: item.name != null ? String(item.name) : '',
   email: item.email !== undefined && item.email !== null ? String(item.email).trim() : '',
   phone: item.phone !== undefined && item.phone !== null ? String(item.phone) : '',
@@ -41,7 +43,12 @@ const buildTeacherBody = (item) => ({
         shiftId: normalizeId(c.shiftId || c.shiftid)
       }))
     : []
-});
+  };
+  if (np.length >= 6) {
+    body.newPassword = np;
+  }
+  return body;
+};
 
 export const getTitulosHabilitantes = async () => {
   const res = await clientAxios.get('/titulo-habilitante', authHeaders());

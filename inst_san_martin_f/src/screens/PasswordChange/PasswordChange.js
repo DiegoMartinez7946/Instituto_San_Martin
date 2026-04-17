@@ -5,6 +5,7 @@ import Notification from '../../components/Notification/Notification';
 
 import { useGlobal } from '../../context/Global/GlobalProvider';
 import { changePassword } from '../../context/Global/actions/UserActions';
+import { decodeTokenFromCookie } from '../../utils/jwt';
 
 import styles from './PasswordChange.module.css';
 
@@ -37,6 +38,7 @@ const PasswordChange = () => {
         showError(result.message, 'success');
         break;
       case 400:
+      case 403:
         showError(result.message, 'danger');
         break; 
       default:
@@ -60,11 +62,16 @@ const PasswordChange = () => {
       <br />
       <Row className="justify-content-center">
         <Col xs lg="4">
-        { userLogin ? <FormChange
-            saveData={(e) => eventHandler(e)}
-            email={userLogin.email}
-          /> : null
-        }        
+        {(() => {
+          const decoded = decodeTokenFromCookie();
+          const email =
+            (userLogin && userLogin.email) ||
+            (decoded && (decoded.email || decoded.Email)) ||
+            '';
+          return email ? (
+            <FormChange saveData={(e) => eventHandler(e)} email={email} />
+          ) : null;
+        })()}
         </Col>
       </Row>
     </Container>

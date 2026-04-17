@@ -277,7 +277,13 @@ const FormUser = ({ dataEntry, roles, shifts, degrees, saveData, changeActive })
     }
   };
 
-  const roleOptions = (roles || []).filter((r) => r && r.type);
+  const roleOptions = (roles || []).filter(
+    (r) =>
+      r &&
+      r.type &&
+      (String(r.type).toUpperCase() === 'ADMINISTRADOR' ||
+        String(r.type).toUpperCase() === 'ADMINISTRATIVO')
+  );
   const shiftOptions = (shifts || []).filter((s) => s && shiftRowHex(s));
   const degreeOptions = (degrees || []).filter((d) => d && degRowId(d) && d.active !== false);
   const roleUpper = String(data.userType || '').toUpperCase();

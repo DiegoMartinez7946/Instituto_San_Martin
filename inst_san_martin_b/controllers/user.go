@@ -170,11 +170,24 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	result, status, err := services.ChangePasswordService(cp)
 	if status == false {
-		m := models.Response {
-			Message: "Error al actualizar la password " + err.Error(),
-			Code: 400,
+		w.Header().Set("Content-Type", "application/json")
+		code := result.Code
+		if code == 0 {
+			code = 400
 		}
-		json.NewEncoder(w).Encode(m)
+		httpSt := http.StatusBadRequest
+		if code == 403 {
+			httpSt = http.StatusForbidden
+		}
+		if code == 404 {
+			httpSt = http.StatusNotFound
+		}
+		w.WriteHeader(httpSt)
+		msg := result.Message
+		if msg == "" && err != nil {
+			msg = err.Error()
+		}
+		_ = json.NewEncoder(w).Encode(models.Response{Message: msg, Code: code, Ok: false})
 		return
 	}
 

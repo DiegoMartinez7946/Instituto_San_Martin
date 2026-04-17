@@ -51,6 +51,8 @@ const FormTestType = ({ dataEntry, saveData }) => {
         entityKey={lockEntityKey}
         unlocked={unlocked}
         onUnlock={() => setUnlocked(true)}
+        onCancelUnlock={() => setUnlocked(false)}
+        unlockVariant="warning"
       />
 
       <Form.Group className="mb-3" controlId="formBasicType">

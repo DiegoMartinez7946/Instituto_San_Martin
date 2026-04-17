@@ -93,9 +93,16 @@ const FormTeacher = ({
   const [careerError, setCareerError] = useState('');
   const [activeFormConfirm, setActiveFormConfirm] = useState(null);
   const [activeFormSaving, setActiveFormSaving] = useState(false);
+  const [newPortalPassword, setNewPortalPassword] = useState('');
+  const [portalPwdError, setPortalPwdError] = useState('');
 
   const lockEntityKey = (dataEntry && dataEntry.id) || '';
   const { readOnly, unlocked, setUnlocked, armLockAfterSave } = useFormEditLock(lockEntityKey, dataEntry);
+
+  useEffect(() => {
+    setNewPortalPassword('');
+    setPortalPwdError('');
+  }, [dataEntry]);
 
   const ids = useMemo(
     () => ({
@@ -318,15 +325,23 @@ const FormTeacher = ({
       return;
     }
     setCareerError('');
+    const np = String(newPortalPassword || '').trim();
+    if (np.length > 0 && np.length < 6) {
+      setPortalPwdError('La contraseña de acceso al portal debe tener al menos 6 caracteres (o déjela vacía).');
+      return;
+    }
+    setPortalPwdError('');
     const res = await saveData({
       ...data,
       active: data.active !== false,
       dni: String(data.dni).trim(),
       email: String(data.email).trim(),
       phone: data.phone,
-      careers
+      careers,
+      newPassword: np.length >= 6 ? np : ''
     });
     if (isSaveSuccess(res)) {
+      setNewPortalPassword('');
       armLockAfterSave();
     }
   };
@@ -589,6 +604,26 @@ const FormTeacher = ({
         <Form.Text className="text-muted">
           Por cada carrera indique título habilitante, modalidad y turno. Sin título habilitante puede ser provisional o
           suplente (una u otra, no titular).
+        </Form.Text>
+      </Form.Group>
+
+      <Form.Group className="mb-3" controlId="teacherPortalPassword">
+        <Form.Label>Contraseña de acceso al portal (docente)</Form.Label>
+        <Form.Control
+          type="password"
+          autoComplete="new-password"
+          value={newPortalPassword}
+          onChange={(e) => {
+            setNewPortalPassword(e.target.value);
+            setPortalPwdError('');
+          }}
+          placeholder={data.id ? 'Dejar vacío para no cambiar' : 'Mínimo 6 caracteres para permitir ingreso al sistema'}
+          readOnly={readOnly}
+        />
+        {portalPwdError ? <div className="text-danger small mt-1">{portalPwdError}</div> : null}
+        <Form.Text className="text-muted">
+          El docente podrá iniciar sesión con su correo y esta contraseña. Solo el administrativo puede asignarla o
+          cambiarla desde aquí; el docente puede cambiarla luego en Cambiar Password.
         </Form.Text>
       </Form.Group>
 

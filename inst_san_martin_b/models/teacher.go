@@ -26,6 +26,7 @@ type Teacher struct {
 	Careers           []TeacherCareerAssignment       `bson:"careers" json:"careers"`
 	LegacyDegreeIDs   []primitive.ObjectID            `bson:"degreeids,omitempty" json:"-"` // lectura de documentos viejos
 	Active            bool                            `bson:"active" json:"active"`
+	Password          string                          `bson:"password,omitempty" json:"-"` // bcrypt; login portal docente
 	CreatedAt         time.Time                       `bson:"createdat" json:"createdAt,omitempty"`
 	UpdatedAt         time.Time                       `bson:"updatedat" json:"updatedAt,omitempty"`
 }
