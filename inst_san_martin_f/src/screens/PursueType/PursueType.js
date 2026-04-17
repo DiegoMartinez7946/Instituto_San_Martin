@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Container, Row, Col } from 'react-bootstrap';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Button, Container, Row, Col, Form, InputGroup } from 'react-bootstrap';
 import ModalPursueType from './Modal/Modal';
 import Table from '../../components/Table/Table';
 import Notification from '../../components/Notification/Notification';
@@ -8,6 +8,7 @@ import { useGlobal } from '../../context/Global/GlobalProvider';
 import { getPursueType, addPursueType, deletePursueType, updatePursueType } from '../../context/Global/actions/PursueTypeActions';
 
 import styles from './PursueType.module.css';
+import listToolbar from '../common/ListToolbar.module.css';
 
 const PursueType = () => {
 
@@ -15,6 +16,8 @@ const PursueType = () => {
   const [show, setShow] = useState(false);
   const [dataRow, setDataRow] = useState('');
   const [dataPursueTypes, setDataPursueTypes] = useState([]);
+  const [searchText, setSearchText] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [error, setError] = useState(null);
 
   const showError = (message, type) => {
@@ -95,6 +98,11 @@ const PursueType = () => {
       buildNotification(result); 
     }
   }
+  const filteredPursueTypes = useMemo(() => {
+    const q = String(appliedSearch || '').trim().toLowerCase();
+    if (!q) return dataPursueTypes;
+    return (dataPursueTypes || []).filter((t) => String(t.type || t.name || '').toLowerCase().includes(q));
+  }, [dataPursueTypes, appliedSearch]);
 
   return (
     <React.Fragment>
@@ -105,8 +113,8 @@ const PursueType = () => {
         </Row>
         <hr />
         <br />
-        <Row className="justify-content-center">
-          <Col xs lg="4">
+        <div className={listToolbar.toolbarRow}>
+          <div className={listToolbar.toolbarHalf}>
               <Button 
                 className="w-100"
                 variant="primary"
@@ -115,8 +123,25 @@ const PursueType = () => {
               >
                 Agregar
               </Button>
-          </Col>
-        </Row>
+          </div>
+          <div className={listToolbar.toolbarHalf}>
+            <InputGroup className="w-100">
+              <Form.Control
+                type="text"
+                value={searchText}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSearchText(v);
+                  if (!String(v).trim()) setAppliedSearch('');
+                }}
+                placeholder="Buscar por nombre"
+              />
+              <Button type="button" className={listToolbar.buscarBtn} onClick={() => setAppliedSearch(searchText)}>
+                Buscar
+              </Button>
+            </InputGroup>
+          </div>
+        </div>
         <br />  
         <Row>
           <Col xs lg="2"></Col>
@@ -124,7 +149,7 @@ const PursueType = () => {
             <Table
               key={'pursuetype'}
               tableEvents={(e, d) => tableEvents(e, d)}
-              data={dataPursueTypes}
+              data={filteredPursueTypes}
               actions={'ed'}
             /> 
           </Col>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Form, Button } from 'react-bootstrap';
 
+import clientAxios from '../../../config/axios';
 import ConfirmChangeEstadoModal from '../../../components/ConfirmChangeEstadoModal/ConfirmChangeEstadoModal';
 import FormEditLockBanner from '../../../components/FormEditLockBanner/FormEditLockBanner';
 import { useFormEditLock } from '../../../hooks/useFormEditLock';
@@ -14,11 +15,36 @@ import {
 } from '../../../utils/contact';
 
 const degId = (d) => (d && (d.id || d.ID)) || '';
+const shiftId = (s) => {
+  if (!s) return '';
+  if (typeof s === 'string') {
+    const str = s.trim();
+    const objectIdMatch = str.match(/ObjectId\(["']?([a-fA-F0-9]{24})["']?\)/);
+    if (objectIdMatch) return objectIdMatch[1];
+    return str;
+  }
+  const raw = s.id || s.ID || s._id || s.shiftId || s.shiftid || '';
+  if (raw && typeof raw === 'object') {
+    if (raw.$oid) return String(raw.$oid).trim();
+    if (raw.id) return String(raw.id).trim();
+    if (raw.ID) return String(raw.ID).trim();
+    if (raw._id) return shiftId(raw._id);
+    if (raw.hex) return String(raw.hex).trim();
+    if (raw.Hex) return String(raw.Hex).trim();
+    const keys = Object.keys(raw);
+    if (keys.length === 1) return shiftId(raw[keys[0]]);
+  }
+  const str = String(raw || '').trim();
+  const objectIdMatch = str.match(/ObjectId\(["']?([a-fA-F0-9]{24})["']?\)/);
+  if (objectIdMatch) return objectIdMatch[1];
+  return str === '[object Object]' ? '' : str;
+};
 
 const normalizeCareerRow = (c) => ({
   degreeId: c.degreeId != null ? String(c.degreeId) : '',
   tituloHabilitanteId: c.tituloHabilitanteId != null ? String(c.tituloHabilitanteId) : '',
-  modalidadId: c.modalidadId != null ? String(c.modalidadId) : ''
+  modalidadId: c.modalidadId != null ? String(c.modalidadId) : '',
+  shiftId: shiftId(c.shiftId || c.shiftid || c.ShiftID || c.shiftID)
 });
 
 /** Carreras cuyo nivel de la carrera está incluido en enseniaEn (lista de niveles del docente). */
@@ -43,6 +69,7 @@ const catalogId = (rows, code) => {
 const FormTeacher = ({
   dataEntry,
   degrees,
+  shifts,
   titulosHabilitantes,
   modalidades,
   saveData,
@@ -62,6 +89,7 @@ const FormTeacher = ({
     active: true
   });
   const [careers, setCareers] = useState([]);
+  const [fallbackShifts, setFallbackShifts] = useState([]);
   const [careerError, setCareerError] = useState('');
   const [activeFormConfirm, setActiveFormConfirm] = useState(null);
   const [activeFormSaving, setActiveFormSaving] = useState(false);
@@ -79,6 +107,16 @@ const FormTeacher = ({
     }),
     [titulosHabilitantes, modalidades]
   );
+  const shiftOptions = useMemo(() => {
+    const merged = [...(Array.isArray(shifts) ? shifts : []), ...(Array.isArray(fallbackShifts) ? fallbackShifts : [])];
+    const byId = new Map();
+    merged.forEach((s) => {
+      const sid = shiftId(s);
+      if (!sid) return;
+      if (!byId.has(sid)) byId.set(sid, s);
+    });
+    return Array.from(byId.values());
+  }, [shifts, fallbackShifts]);
 
   const degreeNivelInEnsenia = useCallback(
     (d) => {
@@ -120,6 +158,36 @@ const FormTeacher = ({
     setCareers(filterCareersByEnsenia(raw, enseniaEn, degrees));
     setActiveFormConfirm(null);
   }, [dataEntry, degrees]);
+
+  useEffect(() => {
+    if (Array.isArray(shifts) && shifts.some((s) => shiftId(s))) {
+      setFallbackShifts([]);
+      return;
+    }
+    let mounted = true;
+    const loadShifts = async () => {
+      try {
+        const access_token = document.cookie.replace('token=', '');
+        const result = await clientAxios.get('/shift', {
+          headers: { Authorization: `Bearer${access_token}` }
+        });
+        if (!mounted) return;
+        const rows =
+          result &&
+          result.data &&
+          Array.isArray(result.data.data)
+            ? result.data.data
+            : [];
+        setFallbackShifts(rows);
+      } catch (e) {
+        if (mounted) setFallbackShifts([]);
+      }
+    };
+    loadShifts();
+    return () => {
+      mounted = false;
+    };
+  }, [shifts]);
 
   const openActiveConfirm = (toActive) => {
     if (!data.id || !changeActive) return;
@@ -189,7 +257,8 @@ const FormTeacher = ({
         {
           degreeId: hexId,
           tituloHabilitanteId: ids.tituloNo,
-          modalidadId: ids.provisional
+          modalidadId: ids.provisional,
+          shiftId: shiftOptions.length ? String(shiftId(shiftOptions[0])) : ''
         }
       ];
     });
@@ -211,6 +280,12 @@ const FormTeacher = ({
   const setModalidadForCareer = (degreeId, modalidadId) => {
     setCareers((prev) =>
       prev.map((c) => (c.degreeId === degreeId ? { ...c, modalidadId } : c))
+    );
+  };
+
+  const setShiftForCareer = (degreeId, selectedShiftId) => {
+    setCareers((prev) =>
+      prev.map((c) => (c.degreeId === degreeId ? { ...c, shiftId: selectedShiftId } : c))
     );
   };
 
@@ -236,6 +311,10 @@ const FormTeacher = ({
     setDniError('');
     if (!careers.length) {
       setCareerError('Debe seleccionar al menos una carrera y completar título y modalidad por carrera.');
+      return;
+    }
+    if (careers.some((c) => !String(c.shiftId || '').trim())) {
+      setCareerError('Debe indicar un turno (mañana, tarde o vespertino) por cada carrera.');
       return;
     }
     setCareerError('');
@@ -271,6 +350,8 @@ const FormTeacher = ({
         estadoActivo={lockEntityKey ? data.active !== false : undefined}
         unlocked={unlocked}
         onUnlock={() => setUnlocked(true)}
+        onCancelUnlock={() => setUnlocked(false)}
+        unlockVariant="warning"
       />
 
       <Form.Group className="mb-3" controlId="teacherId">
@@ -474,6 +555,30 @@ const FormTeacher = ({
                           );
                         })}
                       </div>
+                      <div className="mt-2">
+                        <span className="fw-semibold d-block mb-1">Turno (esta carrera)</span>
+                        {shiftOptions.length === 0 ? (
+                          <span className="text-muted small">No hay turnos cargados en Administración → Turnos.</span>
+                        ) : (
+                          shiftOptions.map((s) => {
+                            const sid = String(shiftId(s));
+                            const selectedSid = String(shiftId({ shiftId: row.shiftId }));
+                            return (
+                              <Form.Check
+                                key={sid}
+                                inline
+                                type="radio"
+                                name={`shift-${id}`}
+                                id={`shift-${id}-${sid}`}
+                                label={s.type || sid}
+                                checked={selectedSid === sid}
+                                disabled={readOnly}
+                                onChange={() => setShiftForCareer(id, sid)}
+                              />
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -482,8 +587,8 @@ const FormTeacher = ({
           )}
         </div>
         <Form.Text className="text-muted">
-          Por cada carrera indique si tiene título habilitante y la modalidad. Sin título habilitante puede ser provisional
-          o suplente (una u otra, no titular).
+          Por cada carrera indique título habilitante, modalidad y turno. Sin título habilitante puede ser provisional o
+          suplente (una u otra, no titular).
         </Form.Text>
       </Form.Group>
 

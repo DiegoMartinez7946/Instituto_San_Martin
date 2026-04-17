@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Container, Row, Col } from 'react-bootstrap';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Button, Container, Row, Col, Form, InputGroup } from 'react-bootstrap';
 import ModalTestType from './Modal/Modal';
 import Table from '../../components/Table/Table';
 import Notification from '../../components/Notification/Notification';
@@ -8,6 +8,7 @@ import { useGlobal } from '../../context/Global/GlobalProvider';
 import { getTestType, addTestType, deleteTestType, updateTestType } from '../../context/Global/actions/TestTypeActions';
 
 import styles from './TestType.module.css';
+import listToolbar from '../common/ListToolbar.module.css';
 
 const TestType = () => {
 
@@ -15,6 +16,8 @@ const TestType = () => {
   const [show, setShow] = useState(false);
   const [dataRow, setDataRow] = useState('');
   const [dataTestTypes, setDataTestTypes] = useState([]);
+  const [searchText, setSearchText] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [error, setError] = useState(null);
 
   const showError = (message, type) => {
@@ -95,6 +98,11 @@ const TestType = () => {
       buildNotification(result); 
     }
   }
+  const filteredTestTypes = useMemo(() => {
+    const q = String(appliedSearch || '').trim().toLowerCase();
+    if (!q) return dataTestTypes;
+    return (dataTestTypes || []).filter((t) => String(t.type || t.name || '').toLowerCase().includes(q));
+  }, [dataTestTypes, appliedSearch]);
 
   return (
     <React.Fragment>
@@ -105,8 +113,8 @@ const TestType = () => {
         </Row>
         <hr />
         <br />
-        <Row className="justify-content-center">
-          <Col xs lg="4">
+        <div className={listToolbar.toolbarRow}>
+          <div className={listToolbar.toolbarHalf}>
               <Button 
                 className="w-100"
                 variant="primary"
@@ -115,8 +123,25 @@ const TestType = () => {
               >
                 Agregar
               </Button>
-          </Col>
-        </Row>
+          </div>
+          <div className={listToolbar.toolbarHalf}>
+            <InputGroup className="w-100">
+              <Form.Control
+                type="text"
+                value={searchText}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSearchText(v);
+                  if (!String(v).trim()) setAppliedSearch('');
+                }}
+                placeholder="Buscar por nombre"
+              />
+              <Button type="button" className={listToolbar.buscarBtn} onClick={() => setAppliedSearch(searchText)}>
+                Buscar
+              </Button>
+            </InputGroup>
+          </div>
+        </div>
         <br />  
         <Row>
           <Col xs lg="2"></Col>
@@ -124,7 +149,7 @@ const TestType = () => {
             <Table
               key={'testtype'}
               tableEvents={(e, d) => tableEvents(e, d)}
-              data={dataTestTypes}
+              data={filteredTestTypes}
               actions={'ed'}
             /> 
           </Col>

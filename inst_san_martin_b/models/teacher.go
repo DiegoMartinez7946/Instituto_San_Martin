@@ -11,6 +11,7 @@ type TeacherCareerAssignment struct {
 	DegreeID            primitive.ObjectID `bson:"degreeid" json:"degreeId"`
 	TituloHabilitanteID primitive.ObjectID `bson:"titulohabilitanteid" json:"tituloHabilitanteId"`
 	ModalidadID         primitive.ObjectID `bson:"modalidadid" json:"modalidadId"`
+	ShiftID             primitive.ObjectID `bson:"shiftid" json:"shiftId"`
 }
 
 /* Teacher (docente) — colección teacher */

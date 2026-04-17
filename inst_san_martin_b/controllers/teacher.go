@@ -13,6 +13,7 @@ type careerRowPayload struct {
 	DegreeID            string `json:"degreeId"`
 	TituloHabilitanteID string `json:"tituloHabilitanteId"`
 	ModalidadID         string `json:"modalidadId"`
+	ShiftID             string `json:"shiftId"`
 }
 
 type teacherPayload struct {
@@ -56,10 +57,15 @@ func parseTeacherPayload(p teacherPayload) (models.Teacher, error) {
 		if err != nil {
 			return t, err
 		}
+		sid, err := primitive.ObjectIDFromHex(row.ShiftID)
+		if err != nil {
+			return t, err
+		}
 		t.Careers = append(t.Careers, models.TeacherCareerAssignment{
 			DegreeID:            did,
 			TituloHabilitanteID: tid,
 			ModalidadID:         mid,
+			ShiftID:             sid,
 		})
 	}
 	if p.Active != nil {

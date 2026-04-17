@@ -90,11 +90,17 @@ func validateTeacherCareers(t *models.Teacher) (string, bool) {
 		if c.TituloHabilitanteID.IsZero() || c.ModalidadID.IsZero() {
 			return "Cada carrera requiere titulo habilitante y modalidad", false
 		}
+		if c.ShiftID.IsZero() {
+			return "Cada carrera requiere un turno", false
+		}
 		if _, ok := db.GetTituloHabilitanteByID(c.TituloHabilitanteID); !ok {
 			return "Titulo habilitante no valido", false
 		}
 		if _, ok := db.GetModalidadByID(c.ModalidadID); !ok {
 			return "Modalidad no valida", false
+		}
+		if exists, err := db.ShiftExistsByHexID(c.ShiftID.Hex()); err != nil || !exists {
+			return "Turno no valido", false
 		}
 
 		tit, _ := codigoTitulo(c.TituloHabilitanteID)

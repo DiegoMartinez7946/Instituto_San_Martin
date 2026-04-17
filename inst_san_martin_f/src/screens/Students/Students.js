@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Button, Container, Row, Col } from 'react-bootstrap';
+import { Button, Container, Row, Col, Form, InputGroup } from 'react-bootstrap';
 
 import ModalStudent from './Modal/ModalStudent';
 import Table from '../../components/Table/Table';
@@ -16,6 +16,7 @@ import {
 } from '../../context/Global/actions/StudentActions';
 
 import styles from './Students.module.css';
+import listToolbar from '../common/ListToolbar.module.css';
 import { etiquetaNivel } from '../../constant/nivelesAcademicos';
 
 const degreeNameById = (degrees, hexId) => {
@@ -42,6 +43,8 @@ const Students = () => {
   const [show, setShow] = useState(false);
   const [dataRow, setDataRow] = useState(null);
   const [error, setError] = useState(null);
+  const [searchText, setSearchText] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [activeConfirm, setActiveConfirm] = useState(null);
   const [activeConfirmLoading, setActiveConfirmLoading] = useState(false);
 
@@ -177,6 +180,11 @@ const Students = () => {
     () => buildTableRows(globalState.students, globalState.degrees),
     [globalState.students, globalState.degrees]
   );
+  const filteredTableData = useMemo(() => {
+    const q = String(appliedSearch || '').trim().toLowerCase();
+    if (!q) return tableData;
+    return tableData.filter((r) => String(r.nombre || '').toLowerCase().includes(q));
+  }, [tableData, appliedSearch]);
 
   return (
     <React.Fragment>
@@ -187,8 +195,8 @@ const Students = () => {
         </Row>
         <hr />
         <br />
-        <Row className="justify-content-center">
-          <Col xs lg="4">
+        <div className={listToolbar.toolbarRow}>
+          <div className={listToolbar.toolbarHalf}>
             <Button
               className="w-100"
               variant="primary"
@@ -197,16 +205,33 @@ const Students = () => {
             >
               Agregar
             </Button>
-          </Col>
-        </Row>
+          </div>
+          <div className={listToolbar.toolbarHalf}>
+            <InputGroup className="w-100">
+              <Form.Control
+                type="text"
+                value={searchText}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSearchText(v);
+                  if (!String(v).trim()) setAppliedSearch('');
+                }}
+                placeholder="Buscar por nombre"
+              />
+              <Button type="button" className={listToolbar.buscarBtn} onClick={() => setAppliedSearch(searchText)}>
+                Buscar
+              </Button>
+            </InputGroup>
+          </div>
+        </div>
         <br />
         <Row className={styles.tableRowWrap}>
           <Col xs={12} className="px-2 px-md-3 min-w-0">
-            {tableData.length > 0 ? (
+            {filteredTableData.length > 0 ? (
               <Table
                 key="students-table"
                 tableEvents={(e, d) => tableEvents(e, d)}
-                data={tableData}
+                data={filteredTableData}
                 actions="ec"
               />
             ) : (
