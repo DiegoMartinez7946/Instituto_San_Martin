@@ -1,5 +1,21 @@
 import clientAxios from '../../../config/axios';
 
+const normalizeId = (value) => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'object') {
+    if (value.$oid) return String(value.$oid).trim();
+    if (value.ID) return String(value.ID).trim();
+    if (value.id) return String(value.id).trim();
+    if (value._id) return normalizeId(value._id);
+    if (value.hex) return String(value.hex).trim();
+    if (value.Hex) return String(value.Hex).trim();
+    const keys = Object.keys(value);
+    if (keys.length === 1) return normalizeId(value[keys[0]]);
+  }
+  const str = String(value).trim();
+  return str === '[object Object]' ? '' : str;
+};
+
 const authHeaders = () => {
   const access_token = document.cookie.replace('token=', '');
   return {
@@ -19,9 +35,10 @@ const buildTeacherBody = (item) => ({
   active: item.active === false ? false : true,
   careers: Array.isArray(item.careers)
     ? item.careers.map((c) => ({
-        degreeId: c.degreeId != null ? String(c.degreeId) : '',
-        tituloHabilitanteId: c.tituloHabilitanteId != null ? String(c.tituloHabilitanteId) : '',
-        modalidadId: c.modalidadId != null ? String(c.modalidadId) : ''
+        degreeId: normalizeId(c.degreeId),
+        tituloHabilitanteId: normalizeId(c.tituloHabilitanteId),
+        modalidadId: normalizeId(c.modalidadId),
+        shiftId: normalizeId(c.shiftId || c.shiftid)
       }))
     : []
 });
@@ -76,9 +93,10 @@ export const getTeachers = async (dispatch) => {
     active: t.active !== false,
     careers: Array.isArray(t.careers)
       ? t.careers.map((c) => ({
-          degreeId: c.degreeId,
-          tituloHabilitanteId: c.tituloHabilitanteId,
-          modalidadId: c.modalidadId
+          degreeId: normalizeId(c.degreeId),
+          tituloHabilitanteId: normalizeId(c.tituloHabilitanteId),
+          modalidadId: normalizeId(c.modalidadId),
+          shiftId: normalizeId(c.shiftId || c.shiftid)
         }))
       : []
   }));

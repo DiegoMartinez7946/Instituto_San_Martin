@@ -9,6 +9,7 @@ const ModalTeacher = ({
   saveEvent,
   data,
   degrees,
+  shifts,
   titulosHabilitantes,
   modalidades,
   changeActive
@@ -27,6 +28,7 @@ const ModalTeacher = ({
           key={isEdit ? data.id : 'new'}
           dataEntry={data}
           degrees={degrees}
+          shifts={shifts}
           titulosHabilitantes={titulosHabilitantes}
           modalidades={modalidades}
           saveData={(e) => eventHandler(e)}

@@ -70,28 +70,30 @@
 .argClock {
     margin-left: 0.5rem;
     margin-right: 0.35rem;
-    padding: 0.3rem 0.65rem;
-    max-width: min(36vw, 14rem);
-    border: 1px solid rgba(192, 57, 43, 0.85);
+    padding: 0.35rem 0.75rem;
+    max-width: min(34vw, 15rem);
+    border: 1px solid rgba(255, 255, 255, 0.28);
     border-radius: 6px;
-    background: rgba(0, 0, 0, 0.45);
-    color: rgba(255, 255, 255, 0.95);
+    background: rgba(0, 0, 0, 0.35);
+    color: rgba(255, 255, 255, 0.92);
     display: flex;
-    flex-direction: column;
-    line-height: 1.2;
+    align-items: center;
+    gap: 0.5rem;
+    line-height: 1.35;
     flex-shrink: 1;
     min-width: 0;
 }
 
 .argClock__time {
     font-variant-numeric: tabular-nums;
-    font-weight: 700;
-    font-size: 0.82rem;
-    letter-spacing: 0.04em;
+    font-weight: 600;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
 }
 
 .argClock__meta {
-    font-size: 0.68rem;
+    font-size: 0.74rem;
     opacity: 0.88;
     white-space: nowrap;
     overflow: hidden;
@@ -200,15 +202,14 @@
     }
 
     .argClock {
-        flex-direction: row;
-        align-items: baseline;
+        align-items: center;
         gap: 0.35rem;
-        max-width: 42vw;
+        max-width: 38vw;
         padding: 0.2rem 0.45rem;
     }
 
     .argClock__time {
-        font-size: 0.74rem;
+        font-size: 0.68rem;
     }
 
     .argClock__meta {

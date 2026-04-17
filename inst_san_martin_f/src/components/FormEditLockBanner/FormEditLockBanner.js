@@ -5,7 +5,14 @@ import { Button } from 'react-bootstrap';
  * @param {string} entityKey - Si no hay valor, no se muestra el banner.
  * @param {boolean|undefined} estadoActivo - Si es boolean, se muestra el estado activo/inactivo.
  */
-const FormEditLockBanner = ({ entityKey, estadoActivo, unlocked, onUnlock }) => {
+const FormEditLockBanner = ({
+  entityKey,
+  estadoActivo,
+  unlocked,
+  onUnlock,
+  onCancelUnlock,
+  unlockVariant = 'outline-primary'
+}) => {
   if (!entityKey) return null;
 
   const hasEstado = typeof estadoActivo === 'boolean';
@@ -35,8 +42,13 @@ const FormEditLockBanner = ({ entityKey, estadoActivo, unlocked, onUnlock }) => 
             </p>
           )}
         </div>
-        <div>
-          <Button type="button" variant="outline-primary" disabled={unlocked} onClick={onUnlock}>
+        <div className="d-flex align-items-center gap-2">
+          {unlocked && typeof onCancelUnlock === 'function' ? (
+            <Button type="button" variant="danger" onClick={onCancelUnlock}>
+              Cancelar
+            </Button>
+          ) : null}
+          <Button type="button" variant={unlockVariant} disabled={unlocked} onClick={onUnlock}>
             Desbloquear
           </Button>
         </div>

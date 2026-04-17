@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Container, Row, Col, Button } from 'react-bootstrap';
+import { Container, Row, Col, Button, Form, InputGroup } from 'react-bootstrap';
 import Modal from './Modal/Modal';
 import ModalTeacher from '../Teachers/Modal/ModalTeacher';
 import ModalStudent from '../Students/Modal/ModalStudent';
@@ -27,6 +27,7 @@ import {
 } from '../../context/Global/actions/StudentActions';
 
 import styles from './Users.module.css';
+import listToolbar from '../common/ListToolbar.module.css';
 import { decodeTokenFromCookie, normalizeRoleFromToken } from '../../utils/jwt';
 
 /* Texto largo o varios turnos concatenados */
@@ -64,6 +65,8 @@ const Users = () => {
   const [teacherModalData, setTeacherModalData] = useState(null);
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [studentModalData, setStudentModalData] = useState(null);
+  const [searchText, setSearchText] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [titulosHabilitantes, setTitulosHabilitantes] = useState([]);
   const [modalidadesDocente, setModalidadesDocente] = useState([]);
 
@@ -396,6 +399,11 @@ const Users = () => {
       }),
     [dataUsers]
   );
+  const filteredTableData = useMemo(() => {
+    const q = String(appliedSearch || '').trim().toLowerCase();
+    if (!q) return tableData;
+    return tableData.filter((r) => String(r.nombre || '').toLowerCase().includes(q));
+  }, [tableData, appliedSearch]);
 
   return (
     <React.Fragment>
@@ -406,21 +414,38 @@ const Users = () => {
         </Row>
         <hr />
         <br />
-        <Row className="justify-content-center">
-          <Col xs lg="4">
+        <div className={listToolbar.toolbarRow}>
+          <div className={listToolbar.toolbarHalf}>
             <Button className="w-100" variant="primary" size="xs" onClick={() => addUserEvent()}>
               Agregar
             </Button>
-          </Col>
-        </Row>
+          </div>
+          <div className={listToolbar.toolbarHalf}>
+            <InputGroup className="w-100">
+              <Form.Control
+                type="text"
+                value={searchText}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSearchText(v);
+                  if (!String(v).trim()) setAppliedSearch('');
+                }}
+                placeholder="Buscar por nombre"
+              />
+              <Button type="button" className={listToolbar.buscarBtn} onClick={() => setAppliedSearch(searchText)}>
+                Buscar
+              </Button>
+            </InputGroup>
+          </div>
+        </div>
         <br />
         <Row className={styles.tableRowWrap}>
           <Col xs={12} className="px-2 px-md-3 min-w-0">
-            {tableData.length > 0 ? (
+            {filteredTableData.length > 0 ? (
               <Table
                 key="user"
                 tableEvents={(e, d) => tableEvents(e, d)}
-                data={tableData}
+                data={filteredTableData}
                 actions="e"
                 wideKeys={USER_TABLE_WIDE_KEYS}
               />

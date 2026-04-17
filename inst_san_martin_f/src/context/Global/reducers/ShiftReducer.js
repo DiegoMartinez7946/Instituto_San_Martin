@@ -27,7 +27,12 @@ export default (state, action) => {
         shifts: Array.isArray(action.payload)
           ? action.payload.map((s) => ({
               ...s,
-              ID: s.ID || s.id || s._id || ''
+              ID:
+                s.ID ||
+                s.id ||
+                s._id ||
+                (s._id && typeof s._id === 'object' && s._id.$oid ? s._id.$oid : '') ||
+                ''
             }))
           : []
       };

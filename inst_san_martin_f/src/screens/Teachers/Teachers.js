@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Button, Container, Row, Col } from 'react-bootstrap';
+import { Button, Container, Row, Col, Form, InputGroup } from 'react-bootstrap';
 
 import ModalTeacher from './Modal/ModalTeacher';
 import Table from '../../components/Table/Table';
@@ -8,6 +8,7 @@ import ConfirmChangeEstadoModal from '../../components/ConfirmChangeEstadoModal/
 
 import { useGlobal } from '../../context/Global/GlobalProvider';
 import { getDegree } from '../../context/Global/actions/DegreeActions';
+import { getShift } from '../../context/Global/actions/ShiftActions';
 import {
   getTeachers,
   addTeacher,
@@ -18,6 +19,7 @@ import {
 } from '../../context/Global/actions/TeacherActions';
 
 import styles from './Teachers.module.css';
+import listToolbar from '../common/ListToolbar.module.css';
 import { etiquetaNivel } from '../../constant/nivelesAcademicos';
 
 const degreeNameById = (degrees, hexId) => {
@@ -62,8 +64,11 @@ function Teachers() {
   const [show, setShow] = useState(false);
   const [dataRow, setDataRow] = useState(null);
   const [error, setError] = useState(null);
+  const [searchText, setSearchText] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [titulosHabilitantes, setTitulosHabilitantes] = useState([]);
   const [modalidades, setModalidades] = useState([]);
+  const [shiftsData, setShiftsData] = useState([]);
   const [activeConfirm, setActiveConfirm] = useState(null);
   const [activeConfirmLoading, setActiveConfirmLoading] = useState(false);
 
@@ -99,6 +104,8 @@ function Teachers() {
     const load = async () => {
       try {
         await getDegree(globalDispatch);
+        const shiftsLoaded = await getShift(globalDispatch);
+        setShiftsData(Array.isArray(shiftsLoaded) ? shiftsLoaded : []);
         const [tit, mod] = await Promise.all([
           getTitulosHabilitantes(),
           getModalidadesDocente()
@@ -197,6 +204,11 @@ function Teachers() {
       buildTableRows(globalState.teachers, globalState.degrees, modalidades),
     [globalState.teachers, globalState.degrees, modalidades]
   );
+  const filteredTableData = useMemo(() => {
+    const q = String(appliedSearch || '').trim().toLowerCase();
+    if (!q) return tableData;
+    return tableData.filter((r) => String(r.nombre || '').toLowerCase().includes(q));
+  }, [tableData, appliedSearch]);
 
   return (
     <React.Fragment>
@@ -207,21 +219,38 @@ function Teachers() {
         </Row>
         <hr />
         <br />
-        <Row className="justify-content-center">
-          <Col xs lg="4">
+        <div className={listToolbar.toolbarRow}>
+          <div className={listToolbar.toolbarHalf}>
             <Button className="w-100" variant="primary" size="sm" onClick={() => addTeacherEvent()}>
               Agregar
             </Button>
-          </Col>
-        </Row>
+          </div>
+          <div className={listToolbar.toolbarHalf}>
+            <InputGroup className="w-100">
+              <Form.Control
+                type="text"
+                value={searchText}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSearchText(v);
+                  if (!String(v).trim()) setAppliedSearch('');
+                }}
+                placeholder="Buscar por nombre"
+              />
+              <Button type="button" className={listToolbar.buscarBtn} onClick={() => setAppliedSearch(searchText)}>
+                Buscar
+              </Button>
+            </InputGroup>
+          </div>
+        </div>
         <br />
         <Row className={styles.tableRowWrap}>
           <Col xs={12} className="px-2 px-md-3 min-w-0">
-            {tableData.length > 0 ? (
+            {filteredTableData.length > 0 ? (
               <Table
                 key="teachers-table"
                 tableEvents={(e, d) => tableEvents(e, d)}
-                data={tableData}
+                data={filteredTableData}
                 actions="ec"
               />
             ) : (
@@ -236,6 +265,7 @@ function Teachers() {
         saveEvent={(e) => saveEventHandler(e)}
         data={dataRow}
         degrees={globalState.degrees || []}
+        shifts={(Array.isArray(shiftsData) && shiftsData.length ? shiftsData : globalState.shifts) || []}
         titulosHabilitantes={titulosHabilitantes}
         modalidades={modalidades}
         changeActive={async (payload) => {

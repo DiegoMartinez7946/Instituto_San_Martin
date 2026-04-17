@@ -290,6 +290,8 @@ const FormUser = ({ dataEntry, roles, shifts, degrees, saveData, changeActive })
         estadoActivo={lockEntityKey ? data.active !== false : undefined}
         unlocked={unlocked}
         onUnlock={() => setUnlocked(true)}
+        onCancelUnlock={() => setUnlocked(false)}
+        unlockVariant="warning"
       />
 
       {data.id ? (

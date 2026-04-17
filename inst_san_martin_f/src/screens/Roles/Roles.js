@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Container, Row, Col } from 'react-bootstrap';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Button, Container, Row, Col, Form, InputGroup } from 'react-bootstrap';
 import ModalRole from './Modal/ModalRole';
 import Table from '../../components/Table/Table';
 import Notification from '../../components/Notification/Notification';
@@ -8,6 +8,7 @@ import { useGlobal } from '../../context/Global/GlobalProvider';
 import { getRole, addRole, deleteRole, updateRole } from '../../context/Global/actions/RoleActions';
 
 import styles from './Roles.module.css';
+import listToolbar from '../common/ListToolbar.module.css';
 
 const Roles = () => {
 
@@ -15,6 +16,8 @@ const Roles = () => {
   const [show, setShow] = useState(false);
   const [dataRow, setDataRow] = useState('');
   const [dataRoles, setDataRoles] = useState([]);
+  const [searchText, setSearchText] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [error, setError] = useState(null);
 
   const showError = (message, type) => {
@@ -95,6 +98,11 @@ const Roles = () => {
       buildNotification(result); 
     }
   }
+  const filteredRoles = useMemo(() => {
+    const q = String(appliedSearch || '').trim().toLowerCase();
+    if (!q) return dataRoles;
+    return (dataRoles || []).filter((r) => String(r.type || r.name || '').toLowerCase().includes(q));
+  }, [dataRoles, appliedSearch]);
 
   return (
     <React.Fragment>
@@ -105,8 +113,8 @@ const Roles = () => {
         </Row>
         <hr />
         <br />
-        <Row className="justify-content-center">
-          <Col xs lg="4">
+        <div className={listToolbar.toolbarRow}>
+          <div className={listToolbar.toolbarHalf}>
               <Button 
                 className="w-100"
                 variant="primary"
@@ -115,8 +123,25 @@ const Roles = () => {
               >
                 Agregar
               </Button>
-          </Col>
-        </Row>
+          </div>
+          <div className={listToolbar.toolbarHalf}>
+            <InputGroup className="w-100">
+              <Form.Control
+                type="text"
+                value={searchText}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSearchText(v);
+                  if (!String(v).trim()) setAppliedSearch('');
+                }}
+                placeholder="Buscar por nombre"
+              />
+              <Button type="button" className={listToolbar.buscarBtn} onClick={() => setAppliedSearch(searchText)}>
+                Buscar
+              </Button>
+            </InputGroup>
+          </div>
+        </div>
         <br />  
         <Row>
           <Col xs lg="2"></Col>
@@ -124,7 +149,7 @@ const Roles = () => {
             <Table
               key={'role'}
               tableEvents={(e, d) => tableEvents(e, d)}
-              data={dataRoles}
+              data={filteredRoles}
               actions={'ed'}
             /> 
           </Col>

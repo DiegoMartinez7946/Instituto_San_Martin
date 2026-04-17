@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Container, Row, Col } from 'react-bootstrap';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Button, Container, Row, Col, Form, InputGroup } from 'react-bootstrap';
 import ModalDegree from './Modal/ModalDegree';
 import Table from '../../components/Table/Table';
 import Notification from '../../components/Notification/Notification';
@@ -9,6 +9,7 @@ import { useGlobal } from '../../context/Global/GlobalProvider';
 import { getDegree, addDegree, changeActiveDegree, updateDegree } from '../../context/Global/actions/DegreeActions';
 
 import styles from './Degree.module.css';
+import listToolbar from '../common/ListToolbar.module.css';
 
 const Degree = () => {
 
@@ -16,6 +17,8 @@ const Degree = () => {
   const [show, setShow] = useState(false);
   const [dataRow, setDataRow] = useState('');
   const [dataDegrees, setDataDegrees] = useState([]);
+  const [searchText, setSearchText] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [error, setError] = useState(null);
   const [estadoConfirm, setEstadoConfirm] = useState(null);
   const [estadoConfirmLoading, setEstadoConfirmLoading] = useState(false);
@@ -111,6 +114,11 @@ const Degree = () => {
       setEstadoConfirm(null);
     }
   };
+  const filteredDegrees = useMemo(() => {
+    const q = String(appliedSearch || '').trim().toLowerCase();
+    if (!q) return dataDegrees;
+    return (dataDegrees || []).filter((d) => String(d.name || '').toLowerCase().includes(q));
+  }, [dataDegrees, appliedSearch]);
 
   return (
     <React.Fragment>
@@ -121,8 +129,8 @@ const Degree = () => {
         </Row>
         <hr />
         <br />
-        <Row className="justify-content-center">
-          <Col xs lg="4">
+        <div className={listToolbar.toolbarRow}>
+          <div className={listToolbar.toolbarHalf}>
               <Button 
                 className="w-100"
                 variant="primary"
@@ -131,15 +139,32 @@ const Degree = () => {
               >
                 Agregar
               </Button>
-          </Col>
-        </Row>
+          </div>
+          <div className={listToolbar.toolbarHalf}>
+            <InputGroup className="w-100">
+              <Form.Control
+                type="text"
+                value={searchText}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSearchText(v);
+                  if (!String(v).trim()) setAppliedSearch('');
+                }}
+                placeholder="Buscar por nombre"
+              />
+              <Button type="button" className={listToolbar.buscarBtn} onClick={() => setAppliedSearch(searchText)}>
+                Buscar
+              </Button>
+            </InputGroup>
+          </div>
+        </div>
         <br />  
         <Row className={styles.tableRowWrap}>
           <Col xs={12} className="px-2 px-md-3 min-w-0">
             <Table
               key={'degree'}
               tableEvents={(e, d) => tableEvents(e, d)}
-              data={dataDegrees}
+              data={filteredDegrees}
               actions={'ec'}
               wideKeys={[]}
             />
