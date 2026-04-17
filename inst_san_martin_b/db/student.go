@@ -98,6 +98,9 @@ func InsertStudentDB(s models.Student) (string, error) {
 		"createdat":     s.CreatedAt,
 		"updatedat":     s.UpdatedAt,
 	}
+	if strings.TrimSpace(s.Password) != "" {
+		row["password"] = s.Password
+	}
 
 	result, err := collection.InsertOne(ctx, row)
 	if err != nil {
@@ -117,20 +120,24 @@ func UpdateStudentDB(s models.Student) (bool, error) {
 	collection := db.Collection("student")
 
 	filter := bson.M{"_id": s.ID}
+	setSt := bson.M{
+		"name":          s.Name,
+		"email":         s.Email,
+		"phone":         s.Phone,
+		"dni":           s.DNI,
+		"address":       s.Address,
+		"nivelaprobado": s.NivelAprobado,
+		"modalidad":     s.Modalidad,
+		"condicion":     s.Condicion,
+		"degreeids":     s.DegreeIDs,
+		"active":        s.Active,
+		"updatedat":     s.UpdatedAt,
+	}
+	if strings.TrimSpace(s.Password) != "" {
+		setSt["password"] = s.Password
+	}
 	update := bson.M{
-		"$set": bson.M{
-			"name":          s.Name,
-			"email":         s.Email,
-			"phone":         s.Phone,
-			"dni":           s.DNI,
-			"address":       s.Address,
-			"nivelaprobado": s.NivelAprobado,
-			"modalidad":     s.Modalidad,
-			"condicion":     s.Condicion,
-			"degreeids":     s.DegreeIDs,
-			"active":        s.Active,
-			"updatedat":     s.UpdatedAt,
-		},
+		"$set": setSt,
 		// Clave legacy en camelCase; el driver Go usa "degreeids".
 		"$unset": bson.M{"degreeIds": ""},
 	}
@@ -187,6 +194,23 @@ func FindStudentByIDDB(id primitive.ObjectID) (models.Student, bool) {
 		return models.Student{}, false
 	}
 	return st, true
+}
+
+/* UpdateStudentPasswordHashDB guarda hash bcrypt de contraseña de portal */
+func UpdateStudentPasswordHashDB(id primitive.ObjectID, hashed string) error {
+	if id.IsZero() || strings.TrimSpace(hashed) == "" {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	collection := config.MongoConnection.Database("san_martin").Collection("student")
+	_, err := collection.UpdateOne(ctx, bson.M{"_id": id}, bson.M{
+		"$set": bson.M{
+			"password":  hashed,
+			"updatedat": time.Now(),
+		},
+	})
+	return err
 }
 
 /* FindStudentForUserSync ficha alumno por email (insensible a mayúsculas) o por DNI */

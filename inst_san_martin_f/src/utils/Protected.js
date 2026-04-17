@@ -15,6 +15,8 @@ const Protected = ({ children }) => {
   switch(type) {
     case 'alumno':
       return isLoggedIn && lodash.includes(ScreenPermission['alumno'], children.type.name) ? children : <Navigate to='/home' replace />;
+    case 'docente':
+      return isLoggedIn && lodash.includes(ScreenPermission['docente'], children.type.name) ? children : <Navigate to='/home' replace />;
     case 'administrativo':
       return isLoggedIn && lodash.includes(ScreenPermission['administrativo'], children.type.name) ? children : <Navigate to='/home' replace />;
     case 'administrador':

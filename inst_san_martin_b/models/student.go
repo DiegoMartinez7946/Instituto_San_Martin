@@ -22,6 +22,7 @@ type Student struct {
 	// Algunos documentos usan camelCase en MongoDB; se fusiona en lectura (db/student.go).
 	DegreeIDsLegacy []primitive.ObjectID `bson:"degreeIds,omitempty" json:"-"`
 	Active          bool                 `bson:"active" json:"active"`
+	Password        string               `bson:"password,omitempty" json:"-"` // bcrypt; login portal alumno
 	CreatedAt      time.Time            `bson:"createdat" json:"createdAt,omitempty"`
 	UpdatedAt      time.Time            `bson:"updatedat" json:"updatedAt,omitempty"`
 }

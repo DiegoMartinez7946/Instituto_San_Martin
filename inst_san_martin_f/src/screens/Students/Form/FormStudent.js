@@ -36,6 +36,8 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
   });
   const [activeFormConfirm, setActiveFormConfirm] = useState(null);
   const [activeFormSaving, setActiveFormSaving] = useState(false);
+  const [newPortalPassword, setNewPortalPassword] = useState('');
+  const [portalPwdError, setPortalPwdError] = useState('');
 
   const lockEntityKey = (dataEntry && (dataEntry.id || dataEntry.idAlumno)) || '';
   const { readOnly, unlocked, setUnlocked, armLockAfterSave } = useFormEditLock(lockEntityKey, dataEntry);
@@ -72,6 +74,8 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
       active: isActive
     });
     setActiveFormConfirm(null);
+    setNewPortalPassword('');
+    setPortalPwdError('');
   }, [dataEntry]);
 
   const openActiveConfirm = (toActive) => {
@@ -197,15 +201,23 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
         return;
       }
     }
+    const np = String(newPortalPassword || '').trim();
+    if (np.length > 0 && np.length < 6) {
+      setPortalPwdError('La contraseña de acceso al portal debe tener al menos 6 caracteres (o déjela vacía).');
+      return;
+    }
+    setPortalPwdError('');
     const res = await saveData({
       ...data,
       dni: String(data.dni).trim(),
       email: String(data.email).trim(),
       phone: data.phone,
       modalidad: data.active === false ? '' : String(data.modalidad || '').toUpperCase(),
-      condicion: data.active === false ? '' : String(data.condicion || '').toUpperCase()
+      condicion: data.active === false ? '' : String(data.condicion || '').toUpperCase(),
+      newPassword: np.length >= 6 ? np : ''
     });
     if (isSaveSuccess(res)) {
+      setNewPortalPassword('');
       armLockAfterSave();
       setFormError('');
     }
@@ -227,6 +239,8 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
         estadoActivo={lockEntityKey ? data.active !== false : undefined}
         unlocked={unlocked}
         onUnlock={() => setUnlocked(true)}
+        onCancelUnlock={() => setUnlocked(false)}
+        unlockVariant="warning"
       />
 
       <Form.Group className="mb-3" controlId="studentIdAlumno">
@@ -443,6 +457,26 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
             })
           )}
         </div>
+      </Form.Group>
+
+      <Form.Group className="mb-3" controlId="studentPortalPassword">
+        <Form.Label>Contraseña de acceso al portal (alumno)</Form.Label>
+        <Form.Control
+          type="password"
+          autoComplete="new-password"
+          value={newPortalPassword}
+          onChange={(e) => {
+            setNewPortalPassword(e.target.value);
+            setPortalPwdError('');
+          }}
+          placeholder={data.id ? 'Dejar vacío para no cambiar' : 'Mínimo 6 caracteres para permitir ingreso al sistema'}
+          readOnly={readOnly}
+        />
+        {portalPwdError ? <div className="text-danger small mt-1">{portalPwdError}</div> : null}
+        <Form.Text className="text-muted">
+          El alumno podrá iniciar sesión con su correo y esta contraseña. Solo el administrativo puede asignarla o
+          cambiarla desde aquí; el alumno puede cambiarla luego en Cambiar Password.
+        </Form.Text>
       </Form.Group>
 
       {formError ? <div className="text-danger small mb-2">{formError}</div> : null}

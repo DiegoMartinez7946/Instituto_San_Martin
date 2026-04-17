@@ -12,6 +12,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+func isStaffRoleUpper(s string) bool {
+	u := strings.ToUpper(strings.TrimSpace(s))
+	return u == "ADMINISTRADOR" || u == "ADMINISTRATIVO"
+}
+
 /***************************************************************/
 /* InsertUserService check the user income andthen insert in the db */
 func InsertUserService(u models.User) (string, int, error) {
@@ -48,6 +53,9 @@ func InsertUserService(u models.User) (string, int, error) {
 	idUserType, _, err := db.CheckExistRole(u.UserType)
 	if idUserType == "" {
 		return "El tipo de usuario no existe!! ", 400, err
+	}
+	if !isStaffRoleUpper(u.UserType) {
+		return "Solo se pueden crear cuentas con rol administrador o administrativo", 199, nil
 	}
 
 	mergedShifts := mergeUserShiftSlice(u.ShiftIDs, u.ShiftID)
@@ -86,234 +94,71 @@ func InsertUserService(u models.User) (string, int, error) {
 }
 
 /***************************************************************/
-/* LoginService check the user and create the token */
+/* LoginService: cuenta en user (personal), o docente (teacher), o alumno (student). */
 func LoginService(u models.User) (models.LoginResponse, bool, error) {
 	var resp models.LoginResponse
-	user, status, err := db.CheckExistUser(u.Email)
-	if status == false {
-		return resp, status, err
-	}
-	if !user.Active {
-		return resp, false, nil
-	}
-	errPassword := utils.DecryptPassword(user.Password, u.Password)
-	if errPassword != nil {
-		return resp, false, errPassword
+	u.Email = strings.TrimSpace(u.Email)
+
+	user, inUser, err := db.CheckExistUser(u.Email)
+	if err == nil && inUser {
+		if !user.Active || strings.TrimSpace(user.Password) == "" {
+			return resp, false, nil
+		}
+		if utils.DecryptPassword(user.Password, u.Password) != nil {
+			return resp, false, nil
+		}
+		userClaim, ok, errG := db.GetUserDB(u.Email)
+		if !ok || errG != nil {
+			return resp, false, errG
+		}
+		jwtKey, errJ := utils.GenerateJWT(userClaim)
+		if errJ != nil {
+			return resp, false, errJ
+		}
+		resp.Token = jwtKey
+		return resp, true, nil
 	}
 
-	userClaim, status, err := db.GetUserDB(u.Email)
-	if status == false {
-		return resp, status, err
+	teach, okT := db.FindTeacherByEmailInsensitiveDB(u.Email)
+	if okT && teach.Active && strings.TrimSpace(teach.Password) != "" {
+		if utils.DecryptPassword(teach.Password, u.Password) == nil {
+			ur := models.UserResponse{ID: teach.ID, Email: teach.Email, Role: "DOCENTE"}
+			jwtKey, errJ := utils.GenerateJWT(ur)
+			if errJ != nil {
+				return resp, false, errJ
+			}
+			resp.Token = jwtKey
+			return resp, true, nil
+		}
 	}
 
-	jwtKey, err := utils.GenerateJWT(userClaim)
-	if err != nil {
-		return resp, false, err
+	st, okS := db.FindStudentByEmailInsensitiveDB(u.Email)
+	if okS && st.Active && strings.TrimSpace(st.Password) != "" {
+		if utils.DecryptPassword(st.Password, u.Password) == nil {
+			ur := models.UserResponse{ID: st.ID, Email: st.Email, Role: "ALUMNO"}
+			jwtKey, errJ := utils.GenerateJWT(ur)
+			if errJ != nil {
+				return resp, false, errJ
+			}
+			resp.Token = jwtKey
+			return resp, true, nil
+		}
 	}
 
-	resp = models.LoginResponse{
-		Token: jwtKey,
-	}
-	return resp, true, nil
+	return resp, false, nil
 }
 
 /***************************************************************/
-/* GetUsersService call the db to get the users */
+/* GetUsersService listado de cuentas de personal (solo administrador y administrativo en colección user). */
 func GetUsersService() ([]models.UserListRow, bool, error) {
-	users, code, err := db.GetUsersDB("")
+	users, code, err := db.GetUsersDB("", []string{"ADMINISTRADOR", "ADMINISTRATIVO"})
 	if code == 400 {
 		return users, false, err
 	}
-
-	// Docentes y alumnos viven en colecciones propias (teacher / student), no en "user".
-	// Se agregan aquí para un listado único; no son editables con el mismo modal que las cuentas de login.
-	seenEmail := make(map[string]struct{})
-	for _, u := range users {
-		if em := strings.ToLower(strings.TrimSpace(u.Email)); em != "" {
-			seenEmail[em] = struct{}{}
-		}
-	}
-
-	out := make([]models.UserListRow, 0, len(users)+32)
-	for i := range users {
-		out = append(out, users[i])
-	}
-
-	if teachers, ok := db.GetTeachersDB(); ok {
-		for _, t := range teachers {
-			if t == nil {
-				continue
-			}
-			em := strings.ToLower(strings.TrimSpace(t.Email))
-			if em != "" {
-				if _, dup := seenEmail[em]; dup {
-					continue
-				}
-				seenEmail[em] = struct{}{}
-			}
-			degTeacher := make([]string, 0, len(t.Careers))
-			seenDeg := make(map[string]struct{})
-			for _, c := range t.Careers {
-				if c.DegreeID.IsZero() {
-					continue
-				}
-				h := c.DegreeID.Hex()
-				if _, ok := seenDeg[h]; ok {
-					continue
-				}
-				seenDeg[h] = struct{}{}
-				degTeacher = append(degTeacher, h)
-			}
-			if len(degTeacher) == 0 && len(t.LegacyDegreeIDs) > 0 {
-				for _, d := range t.LegacyDegreeIDs {
-					if d.IsZero() {
-						continue
-					}
-					h := d.Hex()
-					if _, ok := seenDeg[h]; ok {
-						continue
-					}
-					seenDeg[h] = struct{}{}
-					degTeacher = append(degTeacher, h)
-				}
-			}
-			out = append(out, models.UserListRow{
-				ID:        "teacher:" + t.ID.Hex(),
-				Email:     t.Email,
-				Role:      "DOCENTE",
-				Name:      t.Name,
-				DNI:       t.DNI,
-				Address:   t.Address,
-				Phone:     t.Phone,
-				DegreeIDs: degTeacher,
-				Active:    t.Active,
-				Source:    "teacher",
-			})
-		}
-	}
-
-	allStudents, stOk := db.GetStudentsDB()
-	if stOk {
-		for _, s := range allStudents {
-			if s == nil {
-				continue
-			}
-			em := strings.ToLower(strings.TrimSpace(s.Email))
-			if em != "" {
-				if _, dup := seenEmail[em]; dup {
-					continue
-				}
-				seenEmail[em] = struct{}{}
-			}
-			degStu := make([]string, 0, len(s.DegreeIDs))
-			for _, d := range s.DegreeIDs {
-				if d.IsZero() {
-					continue
-				}
-				degStu = append(degStu, d.Hex())
-			}
-			out = append(out, models.UserListRow{
-				ID:        "student:" + s.ID.Hex(),
-				Email:     s.Email,
-				Role:      "ALUMNO",
-				Name:      s.Name,
-				DNI:       s.DNI,
-				Address:   s.Address,
-				Phone:     s.Phone,
-				DegreeIDs: degStu,
-				Active:    s.Active,
-				Modalidad: s.Modalidad,
-				Condicion: s.Condicion,
-				Source:    "student",
-			})
-		}
-	}
-
-	stByEmail := make(map[string]*models.Student)
-	for _, s := range allStudents {
-		if s == nil {
-			continue
-		}
-		em := strings.ToLower(strings.TrimSpace(s.Email))
-		if em == "" {
-			continue
-		}
-		stByEmail[em] = s
-	}
-	mergeAlumnoUserRowFromStudent := func(row *models.UserListRow, st *models.Student) {
-		row.StudentLinked = true
-		if st != nil && !st.ID.IsZero() {
-			row.StudentRecordID = st.ID.Hex()
-		}
-		row.Modalidad = st.Modalidad
-		row.Condicion = st.Condicion
-		if len(st.DegreeIDs) > 0 {
-			degHex := make([]string, 0, len(st.DegreeIDs))
-			for _, d := range st.DegreeIDs {
-				if d.IsZero() {
-					continue
-				}
-				degHex = append(degHex, d.Hex())
-			}
-			row.DegreeIDs = degHex
-		}
-	}
-
-	for i := range out {
-		if out[i].Source != "" {
-			continue
-		}
-		if strings.ToUpper(strings.TrimSpace(out[i].Role)) != "ALUMNO" {
-			continue
-		}
-		em := strings.ToLower(strings.TrimSpace(out[i].Email))
-		if em == "" {
-			continue
-		}
-		st, ok := stByEmail[em]
-		if !ok || st == nil {
-			continue
-		}
-		mergeAlumnoUserRowFromStudent(&out[i], st)
-	}
-
-	stByDNI := make(map[string]*models.Student)
-	for _, s := range allStudents {
-		if s == nil {
-			continue
-		}
-		d := strings.TrimSpace(s.DNI)
-		if d == "" {
-			continue
-		}
-		stByDNI[d] = s
-	}
-	for i := range out {
-		if out[i].Source != "" {
-			continue
-		}
-		if strings.ToUpper(strings.TrimSpace(out[i].Role)) != "ALUMNO" {
-			continue
-		}
-		if out[i].StudentLinked {
-			continue
-		}
-		d := strings.TrimSpace(out[i].DNI)
-		if d == "" {
-			continue
-		}
-		st, ok := stByDNI[d]
-		if !ok || st == nil {
-			continue
-		}
-		mergeAlumnoUserRowFromStudent(&out[i], st)
-	}
-
-	sort.SliceStable(out, func(i, j int) bool {
-		return strings.ToLower(strings.TrimSpace(out[i].Name)) < strings.ToLower(strings.TrimSpace(out[j].Name))
+	sort.SliceStable(users, func(i, j int) bool {
+		return strings.ToLower(strings.TrimSpace(users[i].Name)) < strings.ToLower(strings.TrimSpace(users[j].Name))
 	})
-
-	return out, true, nil
+	return users, true, nil
 }
 
 func mergeUserShiftSlice(ids []string, legacy string) []string {
@@ -435,6 +280,13 @@ func UpdateUserService(idHex string, name, dni, address, phone, email, password,
 	if err != nil || !ok {
 		return "Usuario no encontrado", 404, err
 	}
+	curRole, okRole, errRole := db.UserRoleTypeByID(id)
+	if errRole != nil {
+		return "Error al validar el usuario", 400, errRole
+	}
+	if !okRole || !isStaffRoleUpper(curRole) {
+		return "Operación no permitida: las cuentas de docentes y alumnos se administran en sus módulos", 403, nil
+	}
 
 	email = strings.TrimSpace(email)
 	if msg, okVal := ValidateCorreoElectronicoRequired(email); !okVal {
@@ -471,6 +323,9 @@ func UpdateUserService(idHex string, name, dni, address, phone, email, password,
 	}
 
 	if strings.TrimSpace(userTypeCode) != "" {
+		if !isStaffRoleUpper(userTypeCode) {
+			return "Solo se permiten roles administrador o administrativo", 199, nil
+		}
 		newTypeID, _, errR := db.CheckExistRole(userTypeCode)
 		if newTypeID == "" {
 			return "El tipo de usuario no existe", 400, errR
@@ -553,6 +408,13 @@ func UpdateUserActiveService(id primitive.ObjectID, active bool) (string, int, e
 	if id.IsZero() {
 		return "Falta el id del usuario", 199, nil
 	}
+	rt, ok, err := db.UserRoleTypeByID(id)
+	if err != nil {
+		return "Error al validar el usuario", 400, err
+	}
+	if !ok || !isStaffRoleUpper(rt) {
+		return "Solo puede cambiar el estado de cuentas administrativas o de administrador", 403, nil
+	}
 	okDB, err := db.UpdateUserActiveDB(id, active)
 	if err != nil || !okDB {
 		return "No se pudo actualizar el estado del usuario", 400, err
@@ -561,7 +423,7 @@ func UpdateUserActiveService(id primitive.ObjectID, active bool) (string, int, e
 }
 
 /***************************************************************/
-/* ChangePasswordService check the current password an update with the new one */
+/* ChangePasswordService: personal (user), docente (teacher) o alumno (student) según sesión JWT. */
 func ChangePasswordService(cp models.OldNewPassword) (models.Response, bool, error) {
 	cp.Email = strings.TrimSpace(cp.Email)
 	if msg, ok := ValidateCorreoElectronicoRequired(cp.Email); !ok {
@@ -572,56 +434,24 @@ func ChangePasswordService(cp models.OldNewPassword) (models.Response, bool, err
 		}
 		return resp, false, nil
 	}
-	user, status, err := db.CheckExistUser(cp.Email)
-	if status == false {
+	sess := strings.ToLower(strings.TrimSpace(GUserEmail))
+	if sess == "" || strings.ToLower(cp.Email) != sess {
 		resp := models.Response{
-			Message: "El usuario no esta registrado",
-			Code:    404,
-			Ok:      false,
-		}
-		return resp, status, err
-	}
-	errPassword := utils.DecryptPassword(user.Password, cp.CurrentPassword)
-	if errPassword != nil {
-		resp := models.Response{
-			Message: "Error: " + errPassword.Error(),
-			Code:    404,
-			Ok:      false,
-		}
-		return resp, false, errPassword
-	}
-
-	cp.NewPassword, _ = utils.EncryptPassword(cp.NewPassword)
-	row := models.User{
-		Email:     strings.TrimSpace(user.Email),
-		Password:  cp.NewPassword,
-		UpdatedAt: time.Now(),
-	}
-
-	okPwd, errPwd := db.ChangePasswordDB(row)
-	if errPwd != nil {
-		resp := models.Response{
-			Message: "Error al actualizar: " + errPwd.Error(),
-			Code:    404,
-			Ok:      false,
-		}
-		return resp, false, errPwd
-	}
-	if !okPwd {
-		resp := models.Response{
-			Message: "No se pudo actualizar la contraseña en la base",
-			Code:    404,
+			Message: "El email no coincide con la sesión",
+			Code:    403,
 			Ok:      false,
 		}
 		return resp, false, nil
 	}
 
-	resp := models.Response{
-		Message: "Password actualizada",
-		Code:    200,
-		Ok:      true,
+	switch strings.ToUpper(strings.TrimSpace(GUserType)) {
+	case "DOCENTE":
+		return changePasswordTeacherSelf(cp)
+	case "ALUMNO":
+		return changePasswordStudentSelf(cp)
+	default:
+		return changePasswordUserStaff(cp)
 	}
-	return resp, true, nil
 }
 
 /***************************************************************/
@@ -644,6 +474,13 @@ func BlankPasswordServices(cp models.OldNewPassword) (string, int, error) {
 			return "Error al buscar el usuario", 400, err
 		}
 		return "El usuario no esta registrado", 404, nil
+	}
+	rtBlank, okRB, errRB := db.UserRoleTypeByID(existing.ID)
+	if errRB != nil {
+		return "Error al validar el usuario", 400, errRB
+	}
+	if !okRB || !isStaffRoleUpper(rtBlank) {
+		return "Solo puede blanquear contraseña de cuentas administrativas o de administrador", 403, nil
 	}
 	emailDB := strings.TrimSpace(existing.Email)
 	if emailDB == "" {

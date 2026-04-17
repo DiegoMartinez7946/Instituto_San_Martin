@@ -44,6 +44,8 @@ const FormChange = ({ email, saveData }) => {
         entityKey="pwd-change"
         unlocked={unlocked}
         onUnlock={() => setUnlocked(true)}
+        onCancelUnlock={() => setUnlocked(false)}
+        unlockVariant="warning"
       />
 
       <Form.Group className="mb-3" controlId="formBasicEmail">

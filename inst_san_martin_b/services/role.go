@@ -96,7 +96,7 @@ func DeleteRoleService(IDRole string) (string, int, error) {
 	}
 
 	// find if exists users with that role
-	users, code, errUser := db.GetUsersDB(role.Type)
+	users, code, errUser := db.GetUsersDB(role.Type, nil)
 	if errUser != nil {
 		return "Hubo un error al buscar los usuarios asociados al rol", code, errUser
 	}

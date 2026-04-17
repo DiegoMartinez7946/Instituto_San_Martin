@@ -42,12 +42,44 @@ func ProcessToken(tk string) (*models.Claim, bool, string, error) {
 		return claims, false, string(""), errors.New("token invalido")
 	}
 
-	_, find, _ := db.CheckExistUser(claims.Email)
-	if find == true {
-		GUserEmail = claims.Email
-		GUserID = claims.ID.Hex()
-		GUserType = claims.Type
+	GUserEmail, GUserID, GUserType = "", "", ""
+
+	email := strings.TrimSpace(claims.Email)
+	typ := strings.ToUpper(strings.TrimSpace(claims.Type))
+	id := claims.ID
+
+	if email != "" {
+		user, inUser, _ := db.CheckExistUser(email)
+		if inUser && user.Active {
+			ur, ok, _ := db.GetUserDB(email)
+			if ok && !ur.ID.IsZero() && ur.ID == id && strings.ToUpper(strings.TrimSpace(ur.Role)) == typ {
+				GUserEmail = email
+				GUserID = ur.ID.Hex()
+				GUserType = typ
+				return claims, true, GUserID, nil
+			}
+		}
 	}
 
-	return claims, find, GUserID, nil
+	if typ == "DOCENTE" && !id.IsZero() {
+		t, ok := db.GetTeacherByID(id)
+		if ok && t.Active && strings.EqualFold(strings.TrimSpace(t.Email), email) {
+			GUserEmail = strings.TrimSpace(t.Email)
+			GUserID = t.ID.Hex()
+			GUserType = "DOCENTE"
+			return claims, true, GUserID, nil
+		}
+	}
+
+	if typ == "ALUMNO" && !id.IsZero() {
+		st, ok := db.FindStudentByIDDB(id)
+		if ok && st.Active && strings.EqualFold(strings.TrimSpace(st.Email), email) {
+			GUserEmail = strings.TrimSpace(st.Email)
+			GUserID = st.ID.Hex()
+			GUserType = "ALUMNO"
+			return claims, true, GUserID, nil
+		}
+	}
+
+	return claims, false, "", nil
 }

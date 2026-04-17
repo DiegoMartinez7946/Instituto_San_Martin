@@ -14,7 +14,8 @@ const buildStudentBody = (item) => {
     item.email !== undefined && item.email !== null
       ? String(item.email).trim()
       : '';
-  return {
+  const np = item.newPassword != null ? String(item.newPassword).trim() : '';
+  const body = {
     name: item.name != null ? String(item.name) : '',
     email,
     phone: item.phone !== undefined && item.phone !== null ? String(item.phone) : '',
@@ -26,6 +27,10 @@ const buildStudentBody = (item) => {
     degreeIds: Array.isArray(item.degreeIds) ? item.degreeIds : [],
     active: item.active === false ? false : true
   };
+  if (np.length >= 6) {
+    body.newPassword = np;
+  }
+  return body;
 };
 
 export const addStudent = async (dispatch, item) => {

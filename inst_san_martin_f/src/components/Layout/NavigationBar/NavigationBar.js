@@ -17,7 +17,8 @@ const permisoLegible = (type) => {
   const map = {
     ADMINISTRATIVO: 'administrativo',
     ADMINISTRADOR: 'administrador',
-    ALUMNO: 'alumno'
+    ALUMNO: 'alumno',
+    DOCENTE: 'docente'
   };
   return map[u] || String(type).toLowerCase();
 };
@@ -107,6 +108,24 @@ const NavigationBar = ({ toggleClick }) => {
                         </NavLink>
                       </li>
                     </ul> 
+                  );
+                  case "DOCENTE": return (
+                    <ul>
+                      <li>
+                        <NavLink
+                          className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                          to="/passwordchange">
+                          Cambiar Password
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink
+                          className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                          to="/logout">
+                          Logout
+                        </NavLink>
+                      </li>
+                    </ul>
                   );
                   case "ADMINISTRATIVO": return (
                     <ul>

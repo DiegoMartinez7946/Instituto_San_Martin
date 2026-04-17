@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"log"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -151,6 +152,9 @@ func InsertTeacherDB(t models.Teacher) (string, error) {
 		"createdat": t.CreatedAt,
 		"updatedat": t.UpdatedAt,
 	}
+	if strings.TrimSpace(t.Password) != "" {
+		row["password"] = t.Password
+	}
 	res, err := collection.InsertOne(ctx, row)
 	if err != nil {
 		return "Hubo un error al insertar el docente", err
@@ -174,18 +178,22 @@ func UpdateTeacherDB(t models.Teacher) (bool, error) {
 		})
 	}
 	filter := bson.M{"_id": t.ID}
+	setDoc := bson.M{
+		"name":      t.Name,
+		"email":     t.Email,
+		"phone":     t.Phone,
+		"dni":       t.DNI,
+		"address":   t.Address,
+		"enseniaen": t.EnseniaEn,
+		"careers":   careers,
+		"active":    t.Active,
+		"updatedat": t.UpdatedAt,
+	}
+	if strings.TrimSpace(t.Password) != "" {
+		setDoc["password"] = t.Password
+	}
 	_, err := collection.UpdateOne(ctx, filter, bson.M{
-		"$set": bson.M{
-			"name":      t.Name,
-			"email":     t.Email,
-			"phone":     t.Phone,
-			"dni":       t.DNI,
-			"address":   t.Address,
-			"enseniaen": t.EnseniaEn,
-			"careers":   careers,
-			"active":    t.Active,
-			"updatedat": t.UpdatedAt,
-		},
+		"$set": setDoc,
 		"$unset": bson.M{
 			"degreeids":           "",
 			"titulohabilitanteid": "",
@@ -196,6 +204,42 @@ func UpdateTeacherDB(t models.Teacher) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+/* FindTeacherByEmailInsensitiveDB docente por email (insensible a mayúsculas) */
+func FindTeacherByEmailInsensitiveDB(email string) (models.Teacher, bool) {
+	em := strings.TrimSpace(email)
+	if em == "" {
+		return models.Teacher{}, false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	collection := config.MongoConnection.Database("san_martin").Collection(teacherCollection)
+	pattern := "^" + regexp.QuoteMeta(em) + "$"
+	filter := bson.M{"email": bson.M{"$regex": pattern, "$options": "i"}}
+	var te models.Teacher
+	err := collection.FindOne(ctx, filter).Decode(&te)
+	if err != nil || te.ID.IsZero() {
+		return models.Teacher{}, false
+	}
+	return te, true
+}
+
+/* UpdateTeacherPasswordHashDB guarda hash bcrypt de contraseña de portal */
+func UpdateTeacherPasswordHashDB(id primitive.ObjectID, hashed string) error {
+	if id.IsZero() || strings.TrimSpace(hashed) == "" {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	collection := config.MongoConnection.Database("san_martin").Collection(teacherCollection)
+	_, err := collection.UpdateOne(ctx, bson.M{"_id": id}, bson.M{
+		"$set": bson.M{
+			"password":  hashed,
+			"updatedat": time.Now(),
+		},
+	})
+	return err
 }
 
 /* FindTeacherByDNIDB igual que alumnos */

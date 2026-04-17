@@ -4,6 +4,7 @@ package controllers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/benjacifre10/san_martin_b/models"
 	"github.com/benjacifre10/san_martin_b/services"
@@ -23,6 +24,7 @@ type studentPayload struct {
 	Condicion     string   `json:"condicion"`
 	DegreeIDs     []string `json:"degreeIds"`
 	Active        *bool    `json:"active"`
+	NewPassword   string   `json:"newPassword,omitempty"` // portal alumno (administrativo)
 }
 
 func parseStudentPayload(p studentPayload) (models.Student, error) {
@@ -101,7 +103,7 @@ func InsertStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg, code, err := services.InsertStudentService(s)
+	msg, code, err := services.InsertStudentService(s, strings.TrimSpace(p.NewPassword))
 	if err != nil || code != 201 {
 		res := models.Response{
 			Message: "Error al insertar el alumno. " + msg,
@@ -142,7 +144,7 @@ func UpdateStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg, code, err := services.UpdateStudentService(s)
+	msg, code, err := services.UpdateStudentService(s, strings.TrimSpace(p.NewPassword))
 	if err != nil || code != 200 {
 		res := models.Response{
 			Message: "Error al actualizar el alumno. " + msg,
@@ -158,6 +160,28 @@ func UpdateStudent(w http.ResponseWriter, r *http.Request) {
 		Code:    code,
 	}
 	json.NewEncoder(w).Encode(res)
+}
+
+type studentPasswordPayload struct {
+	ID          string `json:"id"`
+	NewPassword string `json:"newPassword"`
+}
+
+/* ResetStudentPassword PUT /student/password — solo administrativo (middleware). */
+func ResetStudentPassword(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var p studentPasswordPayload
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		_ = json.NewEncoder(w).Encode(models.Response{Message: "Parametros invalidos", Code: 400})
+		return
+	}
+	msg, code, err := services.ResetStudentPasswordAdministrativo(p.ID, p.NewPassword)
+	if err != nil || code != 200 {
+		_ = json.NewEncoder(w).Encode(models.Response{Message: msg, Code: code})
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(models.Response{Message: msg, Code: code})
 }
 
 type studentActivePayload struct {
