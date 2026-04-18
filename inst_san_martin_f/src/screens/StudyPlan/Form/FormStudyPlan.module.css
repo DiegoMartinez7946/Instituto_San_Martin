@@ -1,0 +1,63 @@
+/* Indicadores tipo radio (sin input nativo): NO activo azul, SI activo rojo */
+
+.extensionRadios {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 1.25rem;
+  width: fit-content;
+  max-width: 100%;
+  pointer-events: none;
+}
+
+.extensionOption {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+  cursor: default;
+  user-select: none;
+}
+
+.radioDot {
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.radioDotIdle {
+  border: 2px solid #adb5bd;
+  background-color: #fff;
+}
+
+.radioDotNoOn {
+  border: 2px solid #0a58ca;
+  background-color: #0d6efd;
+  box-shadow: inset 0 0 0 3px #fff;
+}
+
+.radioDotSiOn {
+  border: 2px solid #842029;
+  background-color: #b02a37;
+  box-shadow: inset 0 0 0 3px #fff;
+}
+
+.extensionLabelNo {
+  color: #0a58ca;
+  font-weight: 600;
+}
+
+.extensionLabelSi {
+  color: #842029;
+  font-weight: 600;
+}
+
+.extensionLabelMuted {
+  color: #6c757d;
+  font-weight: 400;
+}

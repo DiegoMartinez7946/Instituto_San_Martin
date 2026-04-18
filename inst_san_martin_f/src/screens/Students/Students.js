@@ -14,6 +14,8 @@ import {
   updateStudent,
   changeActiveStudent
 } from '../../context/Global/actions/StudentActions';
+import { getShift } from '../../context/Global/actions/ShiftActions';
+import { getLevels } from '../../context/Global/actions/LevelActions';
 
 import styles from './Students.module.css';
 import listToolbar from '../common/ListToolbar.module.css';
@@ -80,6 +82,8 @@ const Students = () => {
   useEffect(() => {
     const load = async () => {
       await getDegree(globalDispatch);
+      await getShift(globalDispatch);
+      await getLevels(globalDispatch).catch(() => {});
       await getStudents(globalDispatch);
     };
     load();
@@ -246,6 +250,7 @@ const Students = () => {
         saveEvent={(e) => saveEventHandler(e)}
         data={dataRow}
         degrees={globalState.degrees || []}
+        shifts={globalState.shifts || []}
         changeActive={async (payload) => {
           const result = await changeActiveStudent(globalDispatch, payload);
           buildNotification(result);

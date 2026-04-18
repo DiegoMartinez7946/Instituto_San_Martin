@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Form, Button } from 'react-bootstrap';
+import { Form, Button, InputGroup } from 'react-bootstrap';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
 import clientAxios from '../../../config/axios';
 import ConfirmChangeEstadoModal from '../../../components/ConfirmChangeEstadoModal/ConfirmChangeEstadoModal';
@@ -95,6 +97,7 @@ const FormTeacher = ({
   const [activeFormSaving, setActiveFormSaving] = useState(false);
   const [newPortalPassword, setNewPortalPassword] = useState('');
   const [portalPwdError, setPortalPwdError] = useState('');
+  const [portalPwdRevealPress, setPortalPwdRevealPress] = useState(false);
 
   const lockEntityKey = (dataEntry && dataEntry.id) || '';
   const { readOnly, unlocked, setUnlocked, armLockAfterSave } = useFormEditLock(lockEntityKey, dataEntry);
@@ -102,7 +105,21 @@ const FormTeacher = ({
   useEffect(() => {
     setNewPortalPassword('');
     setPortalPwdError('');
+    setPortalPwdRevealPress(false);
   }, [dataEntry]);
+
+  useEffect(() => {
+    if (!portalPwdRevealPress) return undefined;
+    const release = () => setPortalPwdRevealPress(false);
+    window.addEventListener('mouseup', release);
+    window.addEventListener('touchend', release);
+    window.addEventListener('touchcancel', release);
+    return () => {
+      window.removeEventListener('mouseup', release);
+      window.removeEventListener('touchend', release);
+      window.removeEventListener('touchcancel', release);
+    };
+  }, [portalPwdRevealPress]);
 
   const ids = useMemo(
     () => ({
@@ -609,17 +626,37 @@ const FormTeacher = ({
 
       <Form.Group className="mb-3" controlId="teacherPortalPassword">
         <Form.Label>Contraseña de acceso al portal (docente)</Form.Label>
-        <Form.Control
-          type="password"
-          autoComplete="new-password"
-          value={newPortalPassword}
-          onChange={(e) => {
-            setNewPortalPassword(e.target.value);
-            setPortalPwdError('');
-          }}
-          placeholder={data.id ? 'Dejar vacío para no cambiar' : 'Mínimo 6 caracteres para permitir ingreso al sistema'}
-          readOnly={readOnly}
-        />
+        <InputGroup>
+          <Form.Control
+            type={portalPwdRevealPress ? 'text' : 'password'}
+            autoComplete="new-password"
+            value={newPortalPassword}
+            onChange={(e) => {
+              setNewPortalPassword(e.target.value);
+              setPortalPwdError('');
+            }}
+            placeholder={data.id ? 'Dejar vacío para no cambiar' : 'Mínimo 6 caracteres para permitir ingreso al sistema'}
+            readOnly={readOnly}
+          />
+          <Button
+            variant="outline-secondary"
+            type="button"
+            title="Mantener presionado para ver la contraseña"
+            aria-label="Mostrar contraseña mientras se mantiene presionado"
+            tabIndex={-1}
+            disabled={readOnly}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setPortalPwdRevealPress(true);
+            }}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              setPortalPwdRevealPress(true);
+            }}
+          >
+            <FontAwesomeIcon icon={portalPwdRevealPress ? faEyeSlash : faEye} />
+          </Button>
+        </InputGroup>
         {portalPwdError ? <div className="text-danger small mt-1">{portalPwdError}</div> : null}
         <Form.Text className="text-muted">
           El docente podrá iniciar sesión con su correo y esta contraseña. Solo el administrativo puede asignarla o

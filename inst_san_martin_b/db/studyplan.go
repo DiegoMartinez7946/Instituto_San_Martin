@@ -2,7 +2,9 @@ package db
 
 import (
 	"context"
+	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/benjacifre10/san_martin_b/config"
@@ -12,149 +14,150 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-/***************************************************************/
-/***************************************************************/
-/* GetStudyPlansDB get the study plans from db */
+var ErrStudyPlanNotFound = errors.New("study plan not found")
+
+const studyPlanCollection = "studyplan"
+
+/* GetStudyPlansDB lista planes de estudio */
 func GetStudyPlansDB() ([]*models.StudyPlan, bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	db := config.MongoConnection.Database("san_martin")
-	collection := db.Collection("study_plan")
-
+	collection := config.WorkingDatabase().Collection(studyPlanCollection)
 	var results []*models.StudyPlan
-
-	condition := bson.M {  }
-	optionsQuery := options.Find()
-	optionsQuery.SetSort(bson.D {{ Key: "name", Value: 1}, { Key: "state", Value: 1}})
-
-	studyPlans, err := collection.Find(ctx, condition, optionsQuery)
+	opts := options.Find().SetSort(bson.D{{Key: "nombre", Value: 1}, {Key: "numeroresolucion", Value: 1}})
+	cur, err := collection.Find(ctx, bson.M{}, opts)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Println("GetStudyPlansDB:", err.Error())
 		return results, false
 	}
-
-	for studyPlans.Next(context.TODO()) {
+	for cur.Next(ctx) {
 		var row models.StudyPlan
-		err := studyPlans.Decode(&row)
-		if err != nil {
+		if err := cur.Decode(&row); err != nil {
+			_ = cur.Close(ctx)
 			return results, false
 		}
 		results = append(results, &row)
 	}
-
+	_ = cur.Close(ctx)
 	return results, true
 }
 
-/***************************************************************/
-/***************************************************************/
-/* InsertStudyPlanDB insert one study plan in db */
+/* InsertStudyPlanDB inserta un plan */
 func InsertStudyPlanDB(s models.StudyPlan) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-
-	db := config.MongoConnection.Database("san_martin")
-	collection := db.Collection("study_plan")
-
-	row := bson.M {
-		"name": s.Name,
-		"code": s.Code,
-		"state": s.State,
+	collection := config.WorkingDatabase().Collection(studyPlanCollection)
+	row := bson.M{
+		"nombre":           s.Nombre,
+		"numeroresolucion": s.NumeroResolucion,
+		"cohorte":          s.Cohorte,
+		"extension":        s.Extension,
+		"anioaprobacion":   s.AnioAprobacion,
+		"aniocaducidad":    s.AnioCaducidad,
+		"cargahoraria":     s.CargaHoraria,
+		"active":           s.Active,
+		"createdat":        s.CreatedAt,
+		"updatedat":        s.UpdatedAt,
 	}
-
-	result, err := collection.InsertOne(ctx, row)
+	res, err := collection.InsertOne(ctx, row)
 	if err != nil {
 		return "Hubo un error al insertar el plan de estudio", err
 	}
-	
-	objID, _ := result.InsertedID.(primitive.ObjectID)
-	return objID.Hex(), nil 
+	oid, _ := res.InsertedID.(primitive.ObjectID)
+	return oid.Hex(), nil
 }
 
-/***************************************************************/
-/***************************************************************/
-/* CheckExistStudyPlan check if study plan already exists */
-func CheckExistStudyPlan(code string) (string, bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
+/* IsNumeroResolucionTakenByOther true si otro plan (no excludeID) usa ese número de resolución */
+func IsNumeroResolucionTakenByOther(nr string, excludeID primitive.ObjectID) bool {
+	nr = strings.TrimSpace(nr)
+	if nr == "" {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-
-	db := config.MongoConnection.Database("san_martin")
-	collection := db.Collection("study_plan")
-
-	condition := bson.M {
-		"code": code,
+	collection := config.WorkingDatabase().Collection(studyPlanCollection)
+	var sp models.StudyPlan
+	err := collection.FindOne(ctx, bson.M{"numeroresolucion": nr}).Decode(&sp)
+	if err != nil || sp.ID.IsZero() {
+		return false
 	}
-
-	var result models.StudyPlan
-
-	err := collection.FindOne(ctx, condition).Decode(&result)
-	if (result.Name != "") {
-		return result.ID.Hex(), true, nil
+	if excludeID.IsZero() {
+		return true
 	}
-
-	return "", false, err
+	return sp.ID != excludeID
 }
 
-/***************************************************************/
-/***************************************************************/
-/* UpdateStudyPlanDB update the study plan in the db */
+/* UpdateStudyPlanDB actualiza campos del plan */
 func UpdateStudyPlanDB(s models.StudyPlan) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
-	defer cancel()
-
-	db := config.MongoConnection.Database("san_martin")
-	collection := db.Collection("study_plan")
-
-	row := make(map[string]interface{})
-	row["name"] = s.Name
-
-	updateString := bson.M {
-		"$set": row,
+	if s.ID.IsZero() {
+		return false, ErrStudyPlanNotFound
 	}
-
-	var idStudyPlan string
-	idStudyPlan = s.ID.Hex()
-
-	objID, _ := primitive.ObjectIDFromHex(idStudyPlan)
-
-	filter := bson.M { "_id": bson.M { "$eq": objID }}
-
-	_, err := collection.UpdateOne(ctx, filter, updateString)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	collection := config.WorkingDatabase().Collection(studyPlanCollection)
+	row := bson.M{
+		"nombre":           s.Nombre,
+		"numeroresolucion": s.NumeroResolucion,
+		"cohorte":          s.Cohorte,
+		"extension":        s.Extension,
+		"anioaprobacion":   s.AnioAprobacion,
+		"aniocaducidad":    s.AnioCaducidad,
+		"cargahoraria":     s.CargaHoraria,
+		"updatedat":        s.UpdatedAt,
+	}
+	ur, err := collection.UpdateOne(ctx, bson.M{"_id": s.ID}, bson.M{"$set": row})
 	if err != nil {
 		return false, err
 	}
-
+	if ur.MatchedCount == 0 {
+		return false, ErrStudyPlanNotFound
+	}
 	return true, nil
 }
 
-/***************************************************************/
-/***************************************************************/
-/* UpdateStateStudyPlanDB update the study plan in the db */
-func UpdateStateStudyPlanDB(s models.StudyPlan) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
-	defer cancel()
-
-	db := config.MongoConnection.Database("san_martin")
-	collection := db.Collection("study_plan")
-
-	row := make(map[string]interface{})
-	row["state"] = s.State
-
-	updateString := bson.M {
-		"$set": row,
+/* UpdateStudyPlanActiveDB solo activo/inactivo */
+func UpdateStudyPlanActiveDB(id primitive.ObjectID, active bool) (bool, error) {
+	if id.IsZero() {
+		return false, nil
 	}
-
-	var idStudyPlan string
-	idStudyPlan = s.ID.Hex()
-
-	objID, _ := primitive.ObjectIDFromHex(idStudyPlan)
-
-	filter := bson.M { "_id": bson.M { "$eq": objID }}
-
-	_, err := collection.UpdateOne(ctx, filter, updateString)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	collection := config.WorkingDatabase().Collection(studyPlanCollection)
+	ur, err := collection.UpdateOne(ctx, bson.M{"_id": id}, bson.M{
+		"$set": bson.M{"active": active, "updatedat": time.Now()},
+	})
 	if err != nil {
 		return false, err
 	}
-
+	if ur.MatchedCount == 0 {
+		return false, ErrStudyPlanNotFound
+	}
 	return true, nil
+}
+
+/* StudyPlanDocumentExists existe documento con ese _id */
+func StudyPlanDocumentExists(id primitive.ObjectID) bool {
+	if id.IsZero() {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	collection := config.WorkingDatabase().Collection(studyPlanCollection)
+	n, err := collection.CountDocuments(ctx, bson.M{"_id": id})
+	return err == nil && n > 0
+}
+
+/* StudyPlanActiveByNumeroResolucion true si existe un plan activo con ese numeroresolucion */
+func StudyPlanActiveByNumeroResolucion(nr string) bool {
+	nr = strings.TrimSpace(nr)
+	if nr == "" {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	collection := config.WorkingDatabase().Collection(studyPlanCollection)
+	var sp models.StudyPlan
+	err := collection.FindOne(ctx, bson.M{"numeroresolucion": nr, "active": true}).Decode(&sp)
+	return err == nil && !sp.ID.IsZero()
 }

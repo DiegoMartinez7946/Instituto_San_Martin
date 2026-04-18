@@ -3,7 +3,7 @@ import { Modal } from 'react-bootstrap';
 
 import FormStudent from '../Form/FormStudent';
 
-const ModalStudent = ({ show, handleClose, saveEvent, data, degrees, changeActive }) => {
+const ModalStudent = ({ show, handleClose, saveEvent, data, degrees, shifts, changeActive }) => {
 
   const eventHandler = async (e) => saveEvent(e);
 
@@ -22,6 +22,7 @@ const ModalStudent = ({ show, handleClose, saveEvent, data, degrees, changeActiv
           key={isEdit ? data.id || data.idAlumno : 'new'}
           dataEntry={data}
           degrees={degrees}
+          shifts={shifts}
           saveData={(e) => eventHandler(e)}
           changeActive={changeActive}
         />

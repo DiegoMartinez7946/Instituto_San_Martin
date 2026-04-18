@@ -9,107 +9,116 @@ import (
 	"github.com/benjacifre10/san_martin_b/services"
 )
 
-/***************************************************************/
-/***************************************************************/
-/* GetStudyPlans get all the study plans */
+/* GetStudyPlans GET /studyplan */
 func GetStudyPlans(w http.ResponseWriter, r *http.Request) {
 	result, status := services.GetStudyPlansService()
-	if status == false {
-		res := models.Response {
+	if !status {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(models.Response{
 			Message: "Error al consultar los planes de estudio",
-			Code: 400,
-		}
-		json.NewEncoder(w).Encode(res)
+			Code:    400,
+		})
 		return
 	}
-
-	res := models.Response {
-		Data: result,
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(res)
+	_ = json.NewEncoder(w).Encode(models.Response{Data: result})
 }
 
-/***************************************************************/
-/***************************************************************/
-/* InsertStudyPlan insert one study plan */
+/* InsertStudyPlan POST /studyplan */
 func InsertStudyPlan(w http.ResponseWriter, r *http.Request) {
 	var studyPlan models.StudyPlan
-	err := json.NewDecoder(r.Body).Decode(&studyPlan)
-
+	if err := json.NewDecoder(r.Body).Decode(&studyPlan); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(models.Response{
+			Message: "JSON invalido: " + err.Error(),
+			Code:    400,
+		})
+		return
+	}
 	msg, code, err := services.InsertStudyPlanService(studyPlan)
 	if err != nil || code != 201 {
-		res := models.Response {
-			Message: "Error al insertar el plan de estudio. " + msg,
-			Code: code,
+		w.Header().Set("Content-Type", "application/json")
+		status := http.StatusBadRequest
+		if code == 199 {
+			status = http.StatusUnprocessableEntity
 		}
-		json.NewEncoder(w).Encode(res)
+		w.WriteHeader(status)
+		_ = json.NewEncoder(w).Encode(models.Response{
+			Message: "Error al insertar el plan de estudio. " + msg,
+			Code:    code,
+		})
 		return
 	}
-
 	w.WriteHeader(http.StatusCreated)
-	res := models.Response {
+	_ = json.NewEncoder(w).Encode(models.Response{
 		Message: "Se ha insertado el plan de estudio correctamente",
-		Code: code,
-		Data: msg,
-	}
-	json.NewEncoder(w).Encode(res)
+		Code:    code,
+		Data:    msg,
+	})
 }
 
-/***************************************************************/
-/***************************************************************/
-/* UpdateStudyPlan update one study plan */
+/* UpdateStudyPlan PUT /studyplan */
 func UpdateStudyPlan(w http.ResponseWriter, r *http.Request) {
 	var studyPlan models.StudyPlan
-	err := json.NewDecoder(r.Body).Decode(&studyPlan)
-
-	var code int
-	var msg string
-	msg, code, err = services.UpdateStudyPlanService(studyPlan)
-	
-	if err != nil || code != 200 {
-		res := models.Response {
-			Message: "Error al actualizar el plan de estudio. " + msg,
-			Code: code,
-		}
-		json.NewEncoder(w).Encode(res)
+	if err := json.NewDecoder(r.Body).Decode(&studyPlan); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(models.Response{
+			Message: "JSON invalido: " + err.Error(),
+			Code:    400,
+		})
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
-	res := models.Response {
-		Message: msg,
-		Code: code,
+	msg, code, err := services.UpdateStudyPlanService(studyPlan)
+	if err != nil || code != 200 {
+		w.Header().Set("Content-Type", "application/json")
+		status := http.StatusBadRequest
+		if code == 199 {
+			status = http.StatusUnprocessableEntity
+		}
+		w.WriteHeader(status)
+		_ = json.NewEncoder(w).Encode(models.Response{
+			Message: "Error al actualizar el plan de estudio. " + msg,
+			Code:    code,
+		})
+		return
 	}
-	json.NewEncoder(w).Encode(res)
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(models.Response{
+		Message: msg,
+		Code:    code,
+	})
 }
 
-/***************************************************************/
-/***************************************************************/
-/* ChangeStateStudyPlan update status study plan */
-func ChangeStateStudyPlan(w http.ResponseWriter, r *http.Request) {
+/* ChangeActiveStudyPlan PUT /studyplan/active */
+func ChangeActiveStudyPlan(w http.ResponseWriter, r *http.Request) {
 	var studyPlan models.StudyPlan
-	err := json.NewDecoder(r.Body).Decode(&studyPlan)
-
-	var code int
-	var msg string
-	msg, code, err = services.UpdateStudyPlanStateService(studyPlan)
-	
-	if err != nil || code != 200 {
-		res := models.Response {
-			Message: "Error al actualizar el estado del plan de estudio. " + msg,
-			Code: code,
-		}
-		json.NewEncoder(w).Encode(res)
+	if err := json.NewDecoder(r.Body).Decode(&studyPlan); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(models.Response{
+			Message: "JSON invalido: " + err.Error(),
+			Code:    400,
+		})
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
-	res := models.Response {
-		Message: msg,
-		Code: code,
+	msg, code, err := services.UpdateStudyPlanActiveService(studyPlan)
+	if err != nil || code != 200 {
+		w.Header().Set("Content-Type", "application/json")
+		status := http.StatusBadRequest
+		if code == 199 {
+			status = http.StatusUnprocessableEntity
+		}
+		w.WriteHeader(status)
+		_ = json.NewEncoder(w).Encode(models.Response{
+			Message: "Error al actualizar el estado del plan de estudio. " + msg,
+			Code:    code,
+		})
+		return
 	}
-	json.NewEncoder(w).Encode(res)
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(models.Response{
+		Message: msg,
+		Code:    code,
+	})
 }

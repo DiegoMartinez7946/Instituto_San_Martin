@@ -21,7 +21,7 @@ func GetPursueTypesDB() ([]*models.PursueType, bool) {
 	defer cancel()
 
 	db := config.MongoConnection.Database("san_martin")
-	collection := db.Collection("pursue_type")
+	collection := db.Collection("attendance_mode")
 
 	var results []*models.PursueType
 
@@ -55,7 +55,7 @@ func InsertPursueTypeDB(p models.PursueType) (string, error) {
 	defer cancel()
 
 	db := config.MongoConnection.Database("san_martin")
-	collection := db.Collection("pursue_type")
+	collection := db.Collection("attendance_mode")
 
 	row := bson.M {
 		"type": p.Type,
@@ -78,7 +78,7 @@ func CheckExistPursueType(typePursueType string) (string, bool, error) {
 	defer cancel()
 
 	db := config.MongoConnection.Database("san_martin")
-	collection := db.Collection("pursue_type")
+	collection := db.Collection("attendance_mode")
 
 	typePursueType = strings.ToUpper(typePursueType)
 	condition := bson.M {
@@ -103,7 +103,7 @@ func UpdatePursueTypeDB(p models.PursueType) (bool, error) {
 	defer cancel()
 
 	db := config.MongoConnection.Database("san_martin")
-	collection := db.Collection("pursue_type")
+	collection := db.Collection("attendance_mode")
 
 	row := make(map[string]interface{})
 	row["type"] = p.Type
@@ -135,7 +135,7 @@ func DeletePursueTypeDB(IDPursueType string) error {
 	defer cancel()
 
 	db := config.MongoConnection.Database("san_martin")
-	collection := db.Collection("pursue_type")
+	collection := db.Collection("attendance_mode")
 
 	objID, _ := primitive.ObjectIDFromHex(IDPursueType)
 
@@ -155,7 +155,7 @@ func GetPursueTypeDB(IDPursueType string) (models.PursueType, error) {
 	defer cancel()
 
 	db := config.MongoConnection.Database("san_martin")
-	collection := db.Collection("pursue_type")
+	collection := db.Collection("attendance_mode")
 
 	objID, _ := primitive.ObjectIDFromHex(IDPursueType)
 

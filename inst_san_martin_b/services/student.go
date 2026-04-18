@@ -10,6 +10,129 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+func shiftTypeToTurnoCode(typ string) string {
+	u := strings.ToUpper(strings.TrimSpace(typ))
+	switch u {
+	case "MAÑANA", "MANANA":
+		return "manana"
+	case "TARDE":
+		return "tarde"
+	case "VESPERTINO":
+		return "noche"
+	default:
+		return ""
+	}
+}
+
+func degreeTurnosNorm(deg models.Degree) []string {
+	var out []string
+	for _, t := range deg.Turnos {
+		c := strings.ToLower(strings.TrimSpace(t))
+		if c != "" {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+func ensureStudentDegreeShiftsDefaults(s *models.Student) {
+	if s == nil || len(s.DegreeIDs) == 0 {
+		s.DegreeShifts = nil
+		return
+	}
+	if len(s.DegreeShifts) > 0 {
+		return
+	}
+	sid, ok := db.GetFirstAvailableShiftID()
+	if !ok {
+		return
+	}
+	for _, did := range s.DegreeIDs {
+		if did.IsZero() {
+			continue
+		}
+		s.DegreeShifts = append(s.DegreeShifts, models.StudentDegreeShift{DegreeID: did, ShiftID: sid})
+	}
+}
+
+func alignStudentDegreeShiftsWithDegreeOrder(s *models.Student) {
+	if s == nil {
+		return
+	}
+	byDeg := make(map[string]primitive.ObjectID)
+	for _, row := range s.DegreeShifts {
+		byDeg[row.DegreeID.Hex()] = row.ShiftID
+	}
+	var out []models.StudentDegreeShift
+	for _, did := range s.DegreeIDs {
+		if sid, ok := byDeg[did.Hex()]; ok {
+			out = append(out, models.StudentDegreeShift{DegreeID: did, ShiftID: sid})
+		}
+	}
+	s.DegreeShifts = out
+}
+
+func validateStudentDegreeShifts(s *models.Student) (string, bool) {
+	if s == nil || len(s.DegreeIDs) == 0 {
+		return "", true
+	}
+	if len(s.DegreeShifts) == 0 {
+		return "Debe indicar el turno de cursada para cada carrera seleccionada", false
+	}
+	byDeg := make(map[primitive.ObjectID]primitive.ObjectID)
+	for _, row := range s.DegreeShifts {
+		if row.DegreeID.IsZero() || row.ShiftID.IsZero() {
+			return "Cada carrera inscripta debe tener un turno valido", false
+		}
+		byDeg[row.DegreeID] = row.ShiftID
+	}
+	for _, did := range s.DegreeIDs {
+		sid, ok := byDeg[did]
+		if !ok {
+			return "Debe indicar el turno de cursada para cada carrera seleccionada", false
+		}
+		ex, err := db.ShiftExistsByHexID(sid.Hex())
+		if err != nil || !ex {
+			return "Uno de los turnos indicados no es valido", false
+		}
+		sh, err := db.GetShiftDB(sid.Hex())
+		if err != nil || sh.ID.IsZero() {
+			return "Uno de los turnos indicados no es valido", false
+		}
+		deg, okD := db.GetDegreeByID(did)
+		if !okD {
+			return "Una o mas carreras no existen", false
+		}
+		allowed := degreeTurnosNorm(deg)
+		if len(allowed) > 0 {
+			code := shiftTypeToTurnoCode(sh.Type)
+			okCode := false
+			for _, a := range allowed {
+				if a == code {
+					okCode = true
+					break
+				}
+			}
+			if !okCode {
+				return "El turno seleccionado no corresponde a los turnos habilitados para la carrera \"" + deg.Name + "\"", false
+			}
+		}
+	}
+	for did := range byDeg {
+		found := false
+		for _, x := range s.DegreeIDs {
+			if x == did {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return "Hay un turno asignado a una carrera que no esta seleccionada", false
+		}
+	}
+	return "", true
+}
+
 /* GetStudentsService */
 func GetStudentsService() ([]*models.Student, bool) {
 	return db.GetStudentsDB()
@@ -25,7 +148,7 @@ func validateStudentDegreesEnrollment(s models.Student) (string, bool) {
 		return "Debe indicar el nivel aprobado del alumno", false
 	}
 
-	jmap := db.GetJerarquiaMap()
+	jmap := db.GetLevelMap()
 	ha, ok := jmap[nivelAlumno]
 	if !ok {
 		return "Nivel aprobado no valido", false
@@ -111,6 +234,11 @@ func InsertStudentService(s models.Student, newPortalPwd string) (string, int, e
 	if !ok {
 		return msg, 199, nil
 	}
+	ensureStudentDegreeShiftsDefaults(&s)
+	alignStudentDegreeShiftsWithDegreeOrder(&s)
+	if msg, ok := validateStudentDegreeShifts(&s); !ok {
+		return msg, 199, nil
+	}
 	if msg, ok := validateStudentExtraModeFields(&s); !ok {
 		return msg, 199, nil
 	}
@@ -165,6 +293,11 @@ func UpdateStudentService(s models.Student, newPortalPwd string) (string, int, e
 	s.NivelAprobado = strings.ToLower(strings.TrimSpace(s.NivelAprobado))
 	msg, ok := validateStudentDegreesEnrollment(s)
 	if !ok {
+		return msg, 199, nil
+	}
+	ensureStudentDegreeShiftsDefaults(&s)
+	alignStudentDegreeShiftsWithDegreeOrder(&s)
+	if msg, ok := validateStudentDegreeShifts(&s); !ok {
 		return msg, 199, nil
 	}
 	if msg, ok := validateStudentExtraModeFields(&s); !ok {

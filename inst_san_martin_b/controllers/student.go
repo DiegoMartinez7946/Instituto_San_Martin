@@ -12,19 +12,25 @@ import (
 )
 
 /* studentPayload decodes JSON degree ids as hex strings */
+type degreeShiftPayload struct {
+	DegreeID string `json:"degreeId"`
+	ShiftID  string `json:"shiftId"`
+}
+
 type studentPayload struct {
-	ID            string   `json:"id"`
-	Name          string   `json:"name"`
-	Email         string   `json:"email"`
-	Phone         string   `json:"phone"`
-	DNI           string   `json:"dni"`
-	Address       string   `json:"address"`
-	NivelAprobado string   `json:"nivelAprobado"`
-	Modalidad     string   `json:"modalidad"`
-	Condicion     string   `json:"condicion"`
-	DegreeIDs     []string `json:"degreeIds"`
-	Active        *bool    `json:"active"`
-	NewPassword   string   `json:"newPassword,omitempty"` // portal alumno (administrativo)
+	ID            string               `json:"id"`
+	Name          string               `json:"name"`
+	Email         string               `json:"email"`
+	Phone         string               `json:"phone"`
+	DNI           string               `json:"dni"`
+	Address       string               `json:"address"`
+	NivelAprobado string               `json:"nivelAprobado"`
+	Modalidad     string               `json:"modalidad"`
+	Condicion     string               `json:"condicion"`
+	DegreeIDs     []string             `json:"degreeIds"`
+	DegreeShifts  []degreeShiftPayload `json:"degreeShifts"`
+	Active        *bool                `json:"active"`
+	NewPassword   string               `json:"newPassword,omitempty"` // portal alumno (administrativo)
 }
 
 func parseStudentPayload(p studentPayload) (models.Student, error) {
@@ -52,6 +58,17 @@ func parseStudentPayload(p studentPayload) (models.Student, error) {
 			return s, err
 		}
 		s.DegreeIDs = append(s.DegreeIDs, oid)
+	}
+	for _, row := range p.DegreeShifts {
+		did, err := primitive.ObjectIDFromHex(strings.TrimSpace(row.DegreeID))
+		if err != nil {
+			return s, err
+		}
+		sid, err := primitive.ObjectIDFromHex(strings.TrimSpace(row.ShiftID))
+		if err != nil {
+			return s, err
+		}
+		s.DegreeShifts = append(s.DegreeShifts, models.StudentDegreeShift{DegreeID: did, ShiftID: sid})
 	}
 	if p.Active != nil {
 		s.Active = *p.Active

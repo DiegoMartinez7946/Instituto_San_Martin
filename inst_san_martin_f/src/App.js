@@ -7,6 +7,7 @@ import Logout from './utils/Logout';
 import Login from './screens/Login/Login';
 import Main from './screens/Main/Main';
 import Degree from './screens/Degree/Degree';
+import StudyPlan from './screens/StudyPlan/StudyPlan';
 import Students from './screens/Students/Students';
 import Teachers from './screens/Teachers/Teachers';
 import Roles from './screens/Roles/Roles';
@@ -39,6 +40,7 @@ const App = () => {
       <Route exact path="/students" element={<Protected><Students/></Protected>} />
       <Route exact path="/teachers" element={<Protected><Teachers/></Protected>} />
       <Route exact path="/degree" element={<Protected><Degree/></Protected>} />
+      <Route exact path="/studyplan" element={<Protected><StudyPlan/></Protected>} />
     </Routes>
   );
   return (

@@ -51,10 +51,10 @@ En la aplicación se utiliza la base **`san_martin`** (configurable mediante var
 | `degree` | Carreras / planes de estudio asociados. |
 | `role` | Definición de roles del sistema. |
 | `shift` | Turnos. |
-| `pursue_type` | Modalidad de cursado. |
+| `attendance_mode` | Modalidad de cursado (asistencia / condición). |
 | `test_type` | Tipo de examen. |
 | `study_plan` | Planes de estudio. |
-| `jerarquia` | Jerarquías / niveles (según el dominio del instituto). |
+| `level` | Niveles académicos y orden jerárquico (`nivel`, `jerarquia`). |
 | `modalidad` | Modalidades (dominio académico). |
 | `titulo_habilitante` | Títulos habilitantes. |
 | `time` | Documento singleton de hora de referencia Argentina (hora, fecha, día, mes, año); se actualiza cuando un cliente autenticado llama al endpoint de reloj. |

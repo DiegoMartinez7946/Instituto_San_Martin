@@ -1,7 +1,7 @@
 export const ScreenPermission = {
   alumno: ["Main", "PasswordChange"],
   docente: ["Main", "PasswordChange"],
-  administrativo: ["Main", "Students", "Teachers", "PasswordChange", "Degree"],
+  administrativo: ["Main", "Students", "Teachers", "PasswordChange", "Degree", "StudyPlan"],
   // Mismos módulos académicos que administrativo + gestión global (Usuarios, Roles, etc.)
   administrador: [
     "Main",

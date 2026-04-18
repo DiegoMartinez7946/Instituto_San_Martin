@@ -189,3 +189,23 @@ func GetShiftDB(IDShift string) (models.Shift, error) {
 	err := collection.FindOne(ctx, condition).Decode(&shift)
 	return shift, err
 }
+
+/* GetFirstAvailableShiftID devuelve un turno existente (prioriza MAÑANA, TARDE, VESPERTINO). */
+func GetFirstAvailableShiftID() (primitive.ObjectID, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	collection := config.MongoConnection.Database("san_martin").Collection("shift")
+	for _, typ := range []string{"MAÑANA", "TARDE", "VESPERTINO"} {
+		var s models.Shift
+		err := collection.FindOne(ctx, bson.M{"type": typ}).Decode(&s)
+		if err == nil && !s.ID.IsZero() {
+			return s.ID, true
+		}
+	}
+	var s models.Shift
+	err := collection.FindOne(ctx, bson.M{}).Decode(&s)
+	if err == nil && !s.ID.IsZero() {
+		return s.ID, true
+	}
+	return primitive.NilObjectID, false
+}

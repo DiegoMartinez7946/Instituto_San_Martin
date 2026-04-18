@@ -8,14 +8,15 @@ export const addDegree = async (dispatch, item) => {
       'Authorization': `Bearer${access_token}`
     },
   }
-  const result = await clientAxios.post('/degree',
-    {
-      name: item.name,
-      active: true,
-      nivel: item.nivel,
-      resolucionId: item.resolucionId
-    },
-    options);
+  const sp = item.studyPlanId != null && String(item.studyPlanId).trim() !== '' ? String(item.studyPlanId).trim() : '';
+  const body = {
+    name: item.name,
+    active: true,
+    nivel: item.nivel,
+    turnos: Array.isArray(item.turnos) ? item.turnos : [],
+    studyPlanId: sp || null
+  };
+  const result = await clientAxios.post('/degree', body, options);
   item.id = result.data.data || '';
   item.ID = item.id;
   item.active = true;
@@ -36,14 +37,15 @@ export const updateDegree = async (dispatch, item) => {
       'Authorization': `Bearer${access_token}`
     },
   };
-  const result = await clientAxios.put('/degree',
-    {
-      id: item.id || item.ID,
-      name: item.name,
-      nivel: item.nivel,
-      resolucionId: item.resolucionId
-    },
-    options);
+  const sp = item.studyPlanId != null && String(item.studyPlanId).trim() !== '' ? String(item.studyPlanId).trim() : '';
+  const body = {
+    id: item.id || item.ID,
+    name: item.name,
+    nivel: item.nivel,
+    turnos: Array.isArray(item.turnos) ? item.turnos : [],
+    studyPlanId: sp || null
+  };
+  const result = await clientAxios.put('/degree', body, options);
 
   dispatch({
     type: 'UPDATE_DEGREE',

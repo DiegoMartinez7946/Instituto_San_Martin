@@ -158,6 +158,15 @@ const NavigationBar = ({ toggleClick }) => {
                             <li>
                               <NavLink
                                 className={({ isActive }) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                                to="/studyplan"
+                              >
+                                Plan de estudio
+                              </NavLink>
+                            </li>
+                            <hr />
+                            <li>
+                              <NavLink
+                                className={({ isActive }) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
                                 to="/teachers"
                               >
                                 Docentes
