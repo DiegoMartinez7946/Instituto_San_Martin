@@ -12,10 +12,15 @@ const SideBar = ({ show, click }) => {
 
   const [globalState] = useGlobal();
   const [icon, setIcon] = useState(null);
+  const [iconPwdMenu, setIconPwdMenu] = useState(null);
+  const [iconAdmMenu, setIconAdmMenu] = useState(null);
   const { userLogin } = globalState;
 
   useEffect(() => {
-    setIcon(<FontAwesomeIcon icon={faAngleDown} />);
+    const down = <FontAwesomeIcon icon={faAngleDown} />;
+    setIcon(down);
+    setIconPwdMenu(down);
+    setIconAdmMenu(down);
   }, [globalState]);
 
   const sessionRole =
@@ -86,6 +91,15 @@ const SideBar = ({ show, click }) => {
                     <li>
                       <NavLink
                         className={styles.side_bar__link_submenu}
+                        to="/teachers"
+                      >
+                        Docentes
+                      </NavLink>
+                    </li>
+                    <hr />
+                    <li>
+                      <NavLink
+                        className={styles.side_bar__link_submenu}
                         to="/degree"
                       >
                         Carreras
@@ -104,9 +118,27 @@ const SideBar = ({ show, click }) => {
                     <li>
                       <NavLink
                         className={styles.side_bar__link_submenu}
-                        to="/teachers"
+                        to="/shift"
                       >
-                        Docentes
+                        Turnos
+                      </NavLink>
+                    </li>
+                    <hr />
+                    <li>
+                      <NavLink
+                        className={styles.side_bar__link_submenu}
+                        to="/testtype"
+                      >
+                        Tipo Examen
+                      </NavLink>
+                    </li>
+                    <hr />
+                    <li>
+                      <NavLink
+                        className={styles.side_bar__link_submenu}
+                        to="/pursuetype"
+                      >
+                        Modalidad
                       </NavLink>
                     </li>
                   </ul>
@@ -131,19 +163,38 @@ const SideBar = ({ show, click }) => {
           case "ADMINISTRADOR": return(
             <ul>
               <li>
-                <NavLink
-                  className={styles.side_bar__link}
-                  to="/passwordblank">
-                  Blanqueo Password
-                </NavLink>
+                <div 
+                  className={styles.sidebar__dropdown_container}
+                  onMouseEnter={() => setIconPwdMenu(<FontAwesomeIcon icon={faAngleRight} />)}
+                  onMouseLeave={() => setIconPwdMenu(<FontAwesomeIcon icon={faAngleDown} />)}
+                >
+                  <span>Contraseñas {iconPwdMenu}</span>
+                  <ul>
+                    <li>
+                      <NavLink
+                        className={styles.side_bar__link_submenu}
+                        to="/passwordblank">
+                        Blanquear usuario (staff)
+                      </NavLink>
+                    </li>
+                    <hr />
+                    <li>
+                      <NavLink
+                        className={styles.side_bar__link_submenu}
+                        to="/passwordchange">
+                        Cambiar mi contraseña
+                      </NavLink>
+                    </li>
+                  </ul>
+                </div>
               </li>
               <li>
                 <div 
                   className={styles.sidebar__dropdown_container}
-                  onMouseEnter={() => setIcon(<FontAwesomeIcon icon={faAngleRight} />)}
-                  onMouseLeave={() => setIcon(<FontAwesomeIcon icon={faAngleDown} />)}
+                  onMouseEnter={() => setIconAdmMenu(<FontAwesomeIcon icon={faAngleRight} />)}
+                  onMouseLeave={() => setIconAdmMenu(<FontAwesomeIcon icon={faAngleDown} />)}
                 >
-                  <span>Administrar {icon}</span>
+                  <span>Administrar {iconAdmMenu}</span>
                   <ul>
                     <li>
                       <NavLink
@@ -156,40 +207,8 @@ const SideBar = ({ show, click }) => {
                     <li>
                       <NavLink
                         className={styles.side_bar__link_submenu}
-                        to="/degree">
-                        Carreras
-                      </NavLink>
-                    </li>
-                    <hr />
-                    <li>
-                      <NavLink
-                        className={styles.side_bar__link_submenu}
                         to="/roles">
                         Roles
-                      </NavLink>
-                    </li>
-                    <hr />
-                    <li>
-                      <NavLink
-                        className={styles.side_bar__link_submenu}
-                        to="/shift">
-                        Turnos
-                      </NavLink>
-                    </li>
-                    <hr />
-                    <li>
-                      <NavLink
-                        className={styles.side_bar__link_submenu}
-                        to="/testtype">
-                        Tipo Examen
-                      </NavLink>
-                    </li>
-                    <hr />
-                    <li>
-                      <NavLink
-                        className={styles.side_bar__link_submenu}
-                        to="/pursuetype">
-                        Modalidad
                       </NavLink>
                     </li>
                   </ul>

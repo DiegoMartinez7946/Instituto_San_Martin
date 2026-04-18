@@ -27,13 +27,18 @@ const NavigationBar = ({ toggleClick }) => {
 
   const [user, setUser] = useState('');
   const [icon, setIcon] = useState(null);
- 
+  const [iconMenuPassword, setIconMenuPassword] = useState(null);
+  const [iconMenuAdmin, setIconMenuAdmin] = useState(null);
+
   const [globalState, dispatch] = useGlobal();
 
   useEffect(() => {
     const decoded = decodeTokenFromCookie();
     setUser(decoded || {});
-    setIcon(<FontAwesomeIcon icon={faAngleDown} />);
+    const chevronDown = <FontAwesomeIcon icon={faAngleDown} />;
+    setIcon(chevronDown);
+    setIconMenuPassword(chevronDown);
+    setIconMenuAdmin(chevronDown);
   }, [globalState]);
 
   useEffect(() => {
@@ -149,6 +154,15 @@ const NavigationBar = ({ toggleClick }) => {
                             <li>
                               <NavLink
                                 className={({ isActive }) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                                to="/teachers"
+                              >
+                                Docentes
+                              </NavLink>
+                            </li>
+                            <hr />
+                            <li>
+                              <NavLink
+                                className={({ isActive }) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
                                 to="/degree"
                               >
                                 Carreras
@@ -167,9 +181,27 @@ const NavigationBar = ({ toggleClick }) => {
                             <li>
                               <NavLink
                                 className={({ isActive }) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
-                                to="/teachers"
+                                to="/shift"
                               >
-                                Docentes
+                                Turnos
+                              </NavLink>
+                            </li>
+                            <hr />
+                            <li>
+                              <NavLink
+                                className={({ isActive }) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                                to="/testtype"
+                              >
+                                Tipo Examen
+                              </NavLink>
+                            </li>
+                            <hr />
+                            <li>
+                              <NavLink
+                                className={({ isActive }) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                                to="/pursuetype"
+                              >
+                                Modalidad
                               </NavLink>
                             </li>
                           </ul>
@@ -194,19 +226,42 @@ const NavigationBar = ({ toggleClick }) => {
                   case "ADMINISTRADOR": return(
                     <ul>
                       <li>
-                        <NavLink
-                          className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
-                          to="/passwordblank">
-                          Blanqueo Password
-                        </NavLink>
+                        <div
+                          className={styles.toolbar__dropdown_container}
+                          onMouseEnter={() => setIconMenuPassword(<FontAwesomeIcon icon={faAngleRight} />)}
+                          onMouseLeave={() => setIconMenuPassword(<FontAwesomeIcon icon={faAngleDown} />)}
+                        >
+                          <span>Contraseñas {iconMenuPassword}</span>
+                          <ul>
+                            <li>
+                              <NavLink
+                                className={({ isActive }) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                                to="/passwordblank"
+                                title="Asignar nueva contraseña a cuentas administrador o administrativo"
+                              >
+                                Blanquear usuario (staff)
+                              </NavLink>
+                            </li>
+                            <hr />
+                            <li>
+                              <NavLink
+                                className={({ isActive }) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
+                                to="/passwordchange"
+                                title="Cambiar la contraseña de la sesión actual"
+                              >
+                                Cambiar mi contraseña
+                              </NavLink>
+                            </li>
+                          </ul>
+                        </div>
                       </li>
                       <li>
                         <div 
                           className={styles.toolbar__dropdown_container}
-                          onMouseEnter={() => setIcon(<FontAwesomeIcon icon={faAngleRight} />)}
-                          onMouseLeave={() => setIcon(<FontAwesomeIcon icon={faAngleDown} />)}
+                          onMouseEnter={() => setIconMenuAdmin(<FontAwesomeIcon icon={faAngleRight} />)}
+                          onMouseLeave={() => setIconMenuAdmin(<FontAwesomeIcon icon={faAngleDown} />)}
                         >
-                          <span>Administrar {icon}</span>
+                          <span>Administrar {iconMenuAdmin}</span>
                           <ul>
                             <li>
                               <NavLink
@@ -219,40 +274,8 @@ const NavigationBar = ({ toggleClick }) => {
                             <li>
                               <NavLink
                                 className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
-                                to="/degree">
-                                Carreras
-                              </NavLink>
-                            </li>
-                            <hr />
-                            <li>
-                              <NavLink
-                                className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
                                 to="/roles">
                                 Roles
-                              </NavLink>
-                            </li>
-                            <hr />
-                            <li>
-                              <NavLink
-                                className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
-                                to="/shift">
-                                Turnos
-                              </NavLink>
-                            </li>
-                            <hr />
-                            <li>
-                              <NavLink
-                                className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
-                                to="/testtype">
-                                Tipo Examen
-                              </NavLink>
-                            </li>
-                            <hr />
-                            <li>
-                              <NavLink
-                                className={({isActive}) => (isActive ? styles.toolbar__link_active : styles.toolbar__link)}
-                                to="/pursuetype">
-                                Modalidad
                               </NavLink>
                             </li>
                           </ul>

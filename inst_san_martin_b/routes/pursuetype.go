@@ -2,18 +2,25 @@
 package routes
 
 import (
+	"net/http"
+
 	"github.com/benjacifre10/san_martin_b/controllers"
 	"github.com/benjacifre10/san_martin_b/middlewares"
 	"github.com/gorilla/mux"
 )
 
-/* PursueType Routes */
-func PursueTypeRoutes(router *mux.Router) (*mux.Router) {
-	router.HandleFunc("/pursuetype", middlewares.DbCheck(middlewares.ValidatedJWT(controllers.GetPursueTypes))).Methods("GET")	
-	router.HandleFunc("/pursuetype", middlewares.DbCheck(middlewares.ValidatedJWT(controllers.InsertPursueType))).Methods("POST")	
-	router.HandleFunc("/pursuetype", middlewares.DbCheck(middlewares.ValidatedJWT(controllers.UpdatePursueType))).Methods("PUT")	
-	router.HandleFunc("/pursuetype", middlewares.DbCheck(middlewares.ValidatedJWT(controllers.DeletePursueType))).Methods("DELETE")	
-
+/* PursueTypeRoutes — lectura admin o administrativo; ABM solo ADMINISTRATIVO */
+func PursueTypeRoutes(router *mux.Router) *mux.Router {
+	read := func(h http.HandlerFunc) http.HandlerFunc {
+		return middlewares.DbCheck(middlewares.ValidatedJWT(middlewares.AdministrativoOnly(h)))
+	}
+	write := func(h http.HandlerFunc) http.HandlerFunc {
+		return middlewares.DbCheck(middlewares.ValidatedJWT(middlewares.SoloAdministrativo(h)))
+	}
+	router.HandleFunc("/pursuetype", read(controllers.GetPursueTypes)).Methods("GET")
+	router.HandleFunc("/pursuetype", write(controllers.InsertPursueType)).Methods("POST")
+	router.HandleFunc("/pursuetype", write(controllers.UpdatePursueType)).Methods("PUT")
+	router.HandleFunc("/pursuetype", write(controllers.DeletePursueType)).Methods("DELETE")
 	return router
 }
 

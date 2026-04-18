@@ -11,6 +11,7 @@ func HandlerRoutes() (*mux.Router) {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/health", controllers.Health).Methods("GET")
+	router = AdminMetricsRoutes(router)
 	router = TimeRoutes(router)
 	router = UserRoutes(router)
 	router = RoleRoutes(router)

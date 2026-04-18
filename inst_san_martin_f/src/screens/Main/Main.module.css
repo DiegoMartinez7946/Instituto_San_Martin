@@ -1,20 +1,110 @@
 .container {
   margin-top: 60px;
+  max-width: min(1320px, 100%);
+  padding-left: 12px;
+  padding-right: 12px;
+  /* Separación vertical entre reloj y Mongo */
+  --dash-gap: 0.875rem;
+  /* Hueco entre columna izquierda y derecha (más chico que antes) */
+  --dash-col-gap: 0.625rem;
 }
 
 .title {
-  margin-bottom: 1rem;
+  margin-bottom: 0.85rem;
+  width: 100%;
+  text-align: center;
+}
+
+/* Mismo ancho que el dashboard: el “home” queda centrado sobre las tarjetas */
+.titleRow {
+  width: min(1180px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+/* Centra el bloque del dashboard en la página (márgenes iguales a izquierda y derecha) */
+.dashboardOuter {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  margin-top: 0.25rem;
+}
+
+/*
+  Dos columnas del mismo peso (1fr 1fr): evita una columna estrecha y otra enorme,
+  que era lo que generaba la franja blanca entre medias.
+*/
+.dashboardRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: var(--dash-col-gap);
+  row-gap: var(--dash-gap);
+  align-items: stretch;
+  justify-items: stretch;
+  width: min(1180px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.dashboardColLeft {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Reloj arriba; Mongo crece hasta igualar alto de la tarjeta del servidor */
+.dashboardLeftStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dash-gap);
+  flex: 1 1 auto;
+  min-height: 100%;
+  height: 100%;
+}
+
+.dashboardMongoGrow {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dashboardMongoGrow > .metricsCard {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dashboardColRight {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboardColRight > .metricsCard {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+}
+
+/* Solo reloj (no admin): una columna centrada, mismo ancho que la pila izquierda del admin */
+.dashboardRowOneCol {
+  grid-template-columns: min(19rem, 100%);
+  width: min(19rem, 100%);
 }
 
 .clockRow {
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .clockCard {
-  max-width: 22rem;
+  max-width: 100%;
   width: 100%;
-  margin-top: 0.5rem;
-  padding: 1.1rem 1.25rem 1.15rem;
+  margin-top: 0;
+  padding: 0.85rem 1rem 0.95rem;
   border: 2px solid #c0392b;
   border-radius: 10px;
   background: linear-gradient(160deg, #1a1a1a 0%, #2c3e50 100%);
@@ -23,16 +113,16 @@
 }
 
 .clockCard__label {
-  margin: 0 0 0.35rem;
-  font-size: 0.85rem;
+  margin: 0 0 0.3rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #bdc3c7;
 }
 
 .clockCard__hora {
-  margin: 0 0 0.85rem;
-  font-size: 1.75rem;
+  margin: 0 0 0.65rem;
+  font-size: 1.45rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.05em;
@@ -42,9 +132,9 @@
 .clockCard__grid {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 0.35rem 1rem;
+  gap: 0.28rem 0.85rem;
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
 }
 
 .clockCard__grid dt {
@@ -56,4 +146,141 @@
 .clockCard__grid dd {
   margin: 0;
   color: #ecf0f1;
+}
+
+.metricsRow {
+  justify-content: flex-start;
+  margin-top: 0;
+}
+
+.metricsCard {
+  max-width: 100%;
+  width: 100%;
+  padding: 0.85rem 1rem 0.95rem;
+  border: 2px solid #c0392b;
+  border-radius: 10px;
+  background: linear-gradient(160deg, #1a1a1a 0%, #2c3e50 100%);
+  color: #ecf0f1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.metricsCard__label {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #bdc3c7;
+}
+
+.metricsCard__warn {
+  margin: 0 0 0.65rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  background: rgba(231, 76, 60, 0.2);
+  border: 1px solid rgba(231, 76, 60, 0.45);
+  color: #fadbd8;
+}
+
+.metricsCard__info {
+  margin: 0 0 0.65rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  background: rgba(243, 156, 18, 0.12);
+  border: 1px solid rgba(243, 156, 18, 0.35);
+  color: #fdebd0;
+}
+
+.metricsCard__note {
+  margin: 0.65rem 0 0;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #95a5a6;
+}
+
+.metricsCard__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 0.75rem;
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.metricsCard__grid dt {
+  margin: 0;
+  color: #95a5a6;
+  font-weight: 500;
+}
+
+.metricsCard__grid dd {
+  margin: 0;
+  color: #ecf0f1;
+  font-variant-numeric: tabular-nums;
+}
+
+.metricsSection {
+  margin-top: 0.65rem;
+}
+
+.metricsSectionTitle {
+  margin: 0 0 0.3rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #7f8c8d;
+}
+
+.processTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  margin-top: 0.35rem;
+}
+
+.processTable th,
+.processTable td {
+  padding: 0.25rem 0.35rem 0.25rem 0;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.processTable th {
+  color: #7f8c8d;
+  font-weight: 600;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.processTable td {
+  color: #ecf0f1;
+  font-variant-numeric: tabular-nums;
+}
+
+.processTable .cellName {
+  max-width: min(18rem, 38vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 992px) {
+  .dashboardRow {
+    grid-template-columns: 1fr;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .clockCard {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .metricsCard__grid {
+    grid-template-columns: 1fr;
+  }
 }

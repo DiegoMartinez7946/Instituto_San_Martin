@@ -8,15 +8,12 @@ import (
 	"github.com/gorilla/mux"
 )
 
-/* StudyPlanRoutes — lectura administrador o administrativo; alta/edición solo administrativo */
+/* StudyPlanRoutes — solo ADMINISTRATIVO (plan de estudio no corresponde al administrador de cuentas) */
 func StudyPlanRoutes(router *mux.Router) *mux.Router {
 	chain := func(h http.HandlerFunc) http.HandlerFunc {
 		return middlewares.DbCheck(middlewares.ValidatedJWT(middlewares.SoloAdministrativo(h)))
 	}
-	chainRead := func(h http.HandlerFunc) http.HandlerFunc {
-		return middlewares.DbCheck(middlewares.ValidatedJWT(middlewares.AdministrativoOnly(h)))
-	}
-	router.HandleFunc("/studyplan", chainRead(controllers.GetStudyPlans)).Methods("GET")
+	router.HandleFunc("/studyplan", chain(controllers.GetStudyPlans)).Methods("GET")
 	router.HandleFunc("/studyplan", chain(controllers.InsertStudyPlan)).Methods("POST")
 	router.HandleFunc("/studyplan", chain(controllers.UpdateStudyPlan)).Methods("PUT")
 	router.HandleFunc("/studyplan/active", chain(controllers.ChangeActiveStudyPlan)).Methods("PUT")

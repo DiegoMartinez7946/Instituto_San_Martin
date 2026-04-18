@@ -1,18 +1,19 @@
 export const ScreenPermission = {
   alumno: ["Main", "PasswordChange"],
   docente: ["Main", "PasswordChange"],
-  administrativo: ["Main", "Students", "Teachers", "PasswordChange", "Degree", "StudyPlan"],
-  // Mismos módulos académicos que administrativo + gestión global (Usuarios, Roles, etc.)
-  administrador: [
+  administrativo: [
     "Main",
-    "Roles",
-    "Users",
+    "Students",
+    "Teachers",
+    "PasswordChange",
+    "Degree",
+    "StudyPlan",
     "Shift",
     "TestType",
     "PursueType",
-    "PasswordBlank",
-    "Degree"
   ],
+  /** Solo cuentas de sistema (user), roles globales y blanqueo; sin carreras/turnos/etc. */
+  administrador: ["Main", "Roles", "Users", "PasswordBlank", "PasswordChange"],
 };
 
 export const LanguageTitles = {
