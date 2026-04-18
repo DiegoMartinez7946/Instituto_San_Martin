@@ -3,10 +3,17 @@ import { Form, Button, InputGroup } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
+import FormEditLockBanner from '../../../components/FormEditLockBanner/FormEditLockBanner';
+import { useFormEditLock } from '../../../hooks/useFormEditLock';
 import { isSaveSuccess } from '../../../utils/saveResult';
 import { validateCorreoElectronicoRequerido } from '../../../utils/contact';
 
 const FormBlank = ({ saveData }) => {
+  const { readOnly, unlocked, setUnlocked, armLockAfterSave } = useFormEditLock(
+    'password-blank',
+    'staff-reset'
+  );
+
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -49,11 +56,20 @@ const FormBlank = ({ saveData }) => {
         newPassword: ''
       });
       setShowNewPassword(false);
+      armLockAfterSave();
     }
   };
 
   return (
     <Form onSubmit={sendData}>
+      <FormEditLockBanner
+        entityKey="password-blank"
+        unlocked={unlocked}
+        onUnlock={() => setUnlocked(true)}
+        onCancelUnlock={() => setUnlocked(false)}
+        unlockVariant="warning"
+      />
+
       <Form.Group className="mb-3" controlId="formBasicEmail">
         <Form.Label>Email</Form.Label>
         <Form.Control
@@ -65,6 +81,7 @@ const FormBlank = ({ saveData }) => {
           value={data.email}
           isInvalid={!!emailError}
           autoComplete="username"
+          readOnly={readOnly}
         />
         <Form.Control.Feedback type="invalid">{emailError}</Form.Control.Feedback>
       </Form.Group>
@@ -80,6 +97,7 @@ const FormBlank = ({ saveData }) => {
             value={data.newPassword}
             isInvalid={!!passwordError}
             autoComplete="new-password"
+            readOnly={readOnly}
           />
           <Button
             variant="outline-secondary"
@@ -88,6 +106,7 @@ const FormBlank = ({ saveData }) => {
             aria-label={showNewPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
             onClick={() => setShowNewPassword((v) => !v)}
             tabIndex={-1}
+            disabled={readOnly}
           >
             <FontAwesomeIcon icon={showNewPassword ? faEyeSlash : faEye} />
           </Button>
@@ -96,7 +115,7 @@ const FormBlank = ({ saveData }) => {
         <Form.Text className="text-muted">Se guarda cifrada en la base de datos.</Form.Text>
       </Form.Group>
       <br />
-      <Button variant="primary" type="submit" className="w-100">
+      <Button variant="primary" type="submit" className="w-100" disabled={readOnly}>
         Actualizar
       </Button>
     </Form>
