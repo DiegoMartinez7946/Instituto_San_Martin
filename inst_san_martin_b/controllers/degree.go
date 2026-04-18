@@ -4,10 +4,43 @@ package controllers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/benjacifre10/san_martin_b/models"
 	"github.com/benjacifre10/san_martin_b/services"
 )
+
+/* decodeDegreeJSON decodifica carrera; studyPlanId es el numeroresolucion del plan (cadena) o null. */
+func decodeDegreeJSON(r *http.Request) (models.Degree, error) {
+	var raw map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+		return models.Degree{}, err
+	}
+	var studyVal string
+	var hadStudyPlanKey bool
+	if v, ok := raw["studyPlanId"]; ok {
+		hadStudyPlanKey = true
+		if v == nil {
+			studyVal = ""
+		} else if s, ok := v.(string); ok {
+			studyVal = strings.TrimSpace(s)
+		}
+	}
+	delete(raw, "studyPlanId")
+	delete(raw, "resolucionId")
+	blob, err := json.Marshal(raw)
+	if err != nil {
+		return models.Degree{}, err
+	}
+	var d models.Degree
+	if err := json.Unmarshal(blob, &d); err != nil {
+		return models.Degree{}, err
+	}
+	if hadStudyPlanKey {
+		d.StudyPlanID = studyVal
+	}
+	return d, nil
+}
 
 /***************************************************************/
 /***************************************************************/
@@ -36,8 +69,15 @@ func GetDegrees(w http.ResponseWriter, r *http.Request) {
 /***************************************************************/
 /* InsertDegree insert one academy degree */
 func InsertDegree(w http.ResponseWriter, r *http.Request) {
-	var degree models.Degree
-	err := json.NewDecoder(r.Body).Decode(&degree)
+	degree, err := decodeDegreeJSON(r)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(models.Response{
+			Message: "JSON invalido: " + err.Error(),
+			Code:    400,
+		})
+		return
+	}
 
 	msg, code, err := services.InsertDegreeService(degree)
 	if err != nil || code != 201 {
@@ -62,8 +102,15 @@ func InsertDegree(w http.ResponseWriter, r *http.Request) {
 /***************************************************************/
 /* UpdateDegree update one academy degree */
 func UpdateDegree(w http.ResponseWriter, r *http.Request) {
-	var degree models.Degree
-	err := json.NewDecoder(r.Body).Decode(&degree)
+	degree, err := decodeDegreeJSON(r)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(models.Response{
+			Message: "JSON invalido: " + err.Error(),
+			Code:    400,
+		})
+		return
+	}
 
 	var code int
 	var msg string
@@ -91,10 +138,18 @@ func UpdateDegree(w http.ResponseWriter, r *http.Request) {
 /* ChangeActiveDegree update status degree */
 func ChangeActiveDegree(w http.ResponseWriter, r *http.Request) {
 	var degree models.Degree
-	err := json.NewDecoder(r.Body).Decode(&degree)
+	if err := json.NewDecoder(r.Body).Decode(&degree); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(models.Response{
+			Message: "JSON invalido: " + err.Error(),
+			Code:    400,
+		})
+		return
+	}
 
 	var code int
 	var msg string
+	var err error
 	msg, code, err = services.UpdateDegreeStatusService(degree)
 	
 	if err != nil || code != 200 {

@@ -9,6 +9,8 @@ import  TestTypeReducer from './reducers/TestTypeReducer';
 import  UserReducer  from './reducers/UserReducer';
 import  StudentReducer from './reducers/StudentReducer';
 import  TeacherReducer from './reducers/TeacherReducer';
+import StudyPlanReducer from './reducers/StudyPlanReducer';
+import LevelReducer from './reducers/LevelReducer';
 import PortalTimeReducer from './reducers/PortalTimeReducer';
 import { GlobalState } from './GlobalState';
 
@@ -20,6 +22,8 @@ export const useGlobal = () => {
 export const GlobalProvider = ({ children }) => {
 
   const GlobalReducer = combineReducers({
+    levels: LevelReducer,
+    studyPlans: StudyPlanReducer,
     degrees: DegreeReducer,
     students: StudentReducer,
     teachers: TeacherReducer,

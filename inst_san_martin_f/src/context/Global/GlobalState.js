@@ -1,4 +1,6 @@
 export const GlobalState = {
+  levels: [],
+  studyPlans: [],
   degrees: [],
   students: [],
   teachers: [],

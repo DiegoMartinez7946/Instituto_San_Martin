@@ -5,6 +5,7 @@ const entityPhrase = (kind) => {
   if (kind === 'docente') return 'del docente';
   if (kind === 'alumno') return 'del alumno';
   if (kind === 'usuario') return 'del usuario';
+  if (kind === 'planestudio') return 'del plan de estudio';
   return 'de la carrera';
 };
 

@@ -1,11 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { Form, Button } from 'react-bootstrap';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Form, Button, InputGroup, Row, Col } from 'react-bootstrap';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
 import ConfirmChangeEstadoModal from '../../../components/ConfirmChangeEstadoModal/ConfirmChangeEstadoModal';
 import FormEditLockBanner from '../../../components/FormEditLockBanner/FormEditLockBanner';
 import { useFormEditLock } from '../../../hooks/useFormEditLock';
 import { isSaveSuccess } from '../../../utils/saveResult';
-import { NIVELES_ORDENADOS, jerarquiaDeNivel, etiquetaNivel } from '../../../constant/nivelesAcademicos';
+import {
+  NIVELES_ORDENADOS,
+  jerarquiaDeNivel,
+  etiquetaNivel,
+  mapaOrdenDesdeLevels,
+  ORDEN_POR_NIVEL_DEFAULT
+} from '../../../constant/nivelesAcademicos';
+import { useGlobal } from '../../../context/Global/GlobalProvider';
 import { validateDNI } from '../../../utils/dni';
 import {
   validateCorreoElectronicoOpcional,
@@ -15,7 +24,67 @@ import {
 
 const degId = (d) => (d && (d.id || d.ID)) || '';
 
-const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
+const shiftSid = (s) => {
+  if (!s) return '';
+  const raw = s.id != null ? s.id : s.ID;
+  if (raw && typeof raw === 'object') {
+    if (raw.$oid) return String(raw.$oid).trim();
+    if (raw.hex) return String(raw.hex).trim();
+  }
+  return String(raw || '').trim();
+};
+
+const shiftTypeToTurno = (type) => {
+  const u = String(type || '').toUpperCase();
+  if (u === 'MAÑANA' || u === 'MANANA') return 'manana';
+  if (u === 'TARDE') return 'tarde';
+  if (u === 'VESPERTINO') return 'noche';
+  return '';
+};
+
+const shiftsForDegree = (degree, shiftsList) => {
+  const turnos = Array.isArray(degree && degree.turnos)
+    ? degree.turnos.map((t) => String(t || '').toLowerCase().trim()).filter(Boolean)
+    : [];
+  return (shiftsList || []).filter((sh) => {
+    if (!turnos.length) return true;
+    const code = shiftTypeToTurno(sh.type || sh.Type);
+    return code && turnos.includes(code);
+  });
+};
+
+/** degreeIds en JSON; si el backend solo envía degreeShifts, deducimos la lista de carreras. */
+const degreeIdsFromEntry = (entry) => {
+  if (!entry) return [];
+  const ids = Array.isArray(entry.degreeIds)
+    ? entry.degreeIds.map((x) => String(x).trim()).filter(Boolean)
+    : [];
+  if (ids.length) return ids;
+  const rows = Array.isArray(entry.degreeShifts) ? entry.degreeShifts : [];
+  return rows
+    .map((r) => String(r.degreeId != null ? r.degreeId : r.degreeid || '').trim())
+    .filter(Boolean);
+};
+
+const buildDegreeShiftsMap = (entry, degreeIdList, degList, shiftsList) => {
+  const map = {};
+  const rows = entry && Array.isArray(entry.degreeShifts) ? entry.degreeShifts : [];
+  rows.forEach((r) => {
+    const did = String(r.degreeId != null ? r.degreeId : r.degreeid || '').trim();
+    const sid = String(r.shiftId != null ? r.shiftId : r.shiftid || '').trim();
+    if (did && sid) map[did] = sid;
+  });
+  (degreeIdList || []).forEach((did) => {
+    if (map[did]) return;
+    const deg = (degList || []).find((x) => degId(x) === did);
+    const opts = shiftsForDegree(deg, shiftsList);
+    const id0 = opts[0] ? shiftSid(opts[0]) : '';
+    if (id0) map[did] = id0;
+  });
+  return map;
+};
+
+const FormStudent = ({ dataEntry, degrees, shifts = [], saveData, changeActive }) => {
 
   const [dniError, setDniError] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -32,15 +101,23 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
     modalidad: '',
     condicion: '',
     degreeIds: [],
+    degreeShiftsByDegree: {},
     active: true
   });
   const [activeFormConfirm, setActiveFormConfirm] = useState(null);
   const [activeFormSaving, setActiveFormSaving] = useState(false);
   const [newPortalPassword, setNewPortalPassword] = useState('');
   const [portalPwdError, setPortalPwdError] = useState('');
+  const [portalPwdRevealPress, setPortalPwdRevealPress] = useState(false);
 
   const lockEntityKey = (dataEntry && (dataEntry.id || dataEntry.idAlumno)) || '';
   const { readOnly, unlocked, setUnlocked, armLockAfterSave } = useFormEditLock(lockEntityKey, dataEntry);
+
+  const [globalState] = useGlobal();
+  const ordenMap = useMemo(
+    () => mapaOrdenDesdeLevels(globalState.levels) || ORDEN_POR_NIVEL_DEFAULT,
+    [globalState.levels]
+  );
 
   useEffect(() => {
     const entry = dataEntry && typeof dataEntry === 'object' ? dataEntry : null;
@@ -53,6 +130,7 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
       entry && (entry.condicion != null && entry.condicion !== ''
         ? entry.condicion
         : entry.Condicion);
+    const degreeIdsList = degreeIdsFromEntry(entry);
     setData({
       id: (entry && (entry.id || entry.idAlumno)) || '',
       name: (entry && entry.name) || '',
@@ -67,16 +145,33 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
         isActive && rawModalidad ? String(rawModalidad).toUpperCase() : '',
       condicion:
         isActive && rawCondicion ? String(rawCondicion).toUpperCase() : '',
-      degreeIds:
-        entry && Array.isArray(entry.degreeIds)
-          ? entry.degreeIds.map((x) => String(x))
-          : [],
+      degreeIds: degreeIdsList,
+      degreeShiftsByDegree: buildDegreeShiftsMap(
+        entry,
+        degreeIdsList,
+        degrees,
+        shifts
+      ),
       active: isActive
     });
     setActiveFormConfirm(null);
     setNewPortalPassword('');
     setPortalPwdError('');
+    setPortalPwdRevealPress(false);
   }, [dataEntry]);
+
+  useEffect(() => {
+    if (!portalPwdRevealPress) return undefined;
+    const release = () => setPortalPwdRevealPress(false);
+    window.addEventListener('mouseup', release);
+    window.addEventListener('touchend', release);
+    window.addEventListener('touchcancel', release);
+    return () => {
+      window.removeEventListener('mouseup', release);
+      window.removeEventListener('touchend', release);
+      window.removeEventListener('touchcancel', release);
+    };
+  }, [portalPwdRevealPress]);
 
   const openActiveConfirm = (toActive) => {
     if (!data.id || !changeActive) return;
@@ -120,15 +215,20 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
     setData((prev) => {
       const next = { ...prev, [name]: value };
       if (name === 'nivelAprobado' && (degrees || []).length) {
-        const ha = jerarquiaDeNivel(value);
+        const ha = jerarquiaDeNivel(value, ordenMap);
         const kept = (prev.degreeIds || []).filter((hexId) => {
           const d = (degrees || []).find((x) => degId(x) === hexId);
           if (!d) return false;
-          const hn = jerarquiaDeNivel((d.nivel || '').toLowerCase().trim());
+          const hn = jerarquiaDeNivel((d.nivel || '').toLowerCase().trim(), ordenMap);
           if (ha == null || hn == null) return false;
           return ha >= hn - 1;
         });
         next.degreeIds = kept;
+        const nextShifts = { ...prev.degreeShiftsByDegree };
+        Object.keys(nextShifts).forEach((k) => {
+          if (!kept.includes(k)) delete nextShifts[k];
+        });
+        next.degreeShiftsByDegree = nextShifts;
       }
       return next;
     });
@@ -142,24 +242,37 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
   };
 
   const toggleDegree = (hexId) => {
-    setData(prev => {
+    setData((prev) => {
       const set = new Set(prev.degreeIds || []);
+      const nextShifts = { ...prev.degreeShiftsByDegree };
       if (set.has(hexId)) {
         set.delete(hexId);
+        delete nextShifts[hexId];
       } else {
         set.add(hexId);
+        const deg = (degrees || []).find((x) => degId(x) === hexId);
+        const opts = shiftsForDegree(deg, shifts);
+        const first = opts[0] ? shiftSid(opts[0]) : '';
+        if (first) nextShifts[hexId] = first;
       }
-      return { ...prev, degreeIds: [...set] };
+      return { ...prev, degreeIds: [...set], degreeShiftsByDegree: nextShifts };
     });
   };
 
-  const haAlumno = jerarquiaDeNivel(data.nivelAprobado);
+  const setShiftForDegree = (degreeHexId, shiftHexId) => {
+    setData((prev) => ({
+      ...prev,
+      degreeShiftsByDegree: { ...prev.degreeShiftsByDegree, [degreeHexId]: shiftHexId }
+    }));
+  };
+
+  const haAlumno = jerarquiaDeNivel(data.nivelAprobado, ordenMap);
 
   const degreeCheckboxDisabled = (d) => {
     if (!data.nivelAprobado) return true;
     const nivelCarrera = (d.nivel || '').toLowerCase().trim();
     if (!nivelCarrera) return true;
-    const hn = jerarquiaDeNivel(nivelCarrera);
+    const hn = jerarquiaDeNivel(nivelCarrera, ordenMap);
     if (hn == null || haAlumno == null) return true;
     return haAlumno < hn - 1;
   };
@@ -207,6 +320,18 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
       return;
     }
     setPortalPwdError('');
+    const ids = data.degreeIds || [];
+    const degreeShifts = [];
+    for (let i = 0; i < ids.length; i += 1) {
+      const did = ids[i];
+      const sid = (data.degreeShiftsByDegree && data.degreeShiftsByDegree[did]) || '';
+      if (!String(sid).trim()) {
+        setFormError('Seleccione el turno de cursada para cada carrera marcada.');
+        return;
+      }
+      degreeShifts.push({ degreeId: did, shiftId: String(sid).trim() });
+    }
+    setFormError('');
     const res = await saveData({
       ...data,
       dni: String(data.dni).trim(),
@@ -214,6 +339,7 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
       phone: data.phone,
       modalidad: data.active === false ? '' : String(data.modalidad || '').toUpperCase(),
       condicion: data.active === false ? '' : String(data.condicion || '').toUpperCase(),
+      degreeShifts,
       newPassword: np.length >= 6 ? np : ''
     });
     if (isSaveSuccess(res)) {
@@ -433,45 +559,121 @@ const FormStudent = ({ dataEntry, degrees, saveData, changeActive }) => {
       ) : null}
 
       <Form.Group className="mb-3" controlId="studentDegrees">
-        <Form.Label>Carreras</Form.Label>
-        <div className="border rounded p-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-          {selectableDegrees.length === 0 ? (
-            <span className="text-muted">No hay carreras activas. Cree carreras primero.</span>
-          ) : (
-            selectableDegrees.map(d => {
-              const id = degId(d);
-              if (!id) return null;
-              const dis = degreeCheckboxDisabled(d);
-              return (
-                <Form.Check
-                  key={id}
-                  type="checkbox"
-                  id={`deg-${id}`}
-                  label={d.name + (d.nivel ? ` (${etiquetaNivel(d.nivel)})` : '')}
-                  title={degreeCheckboxTitle(d)}
-                  checked={(data.degreeIds || []).includes(id)}
-                  disabled={readOnly || dis}
-                  onChange={() => { if (!dis && !readOnly) toggleDegree(id); }}
-                />
-              );
-            })
-          )}
-        </div>
+        <Form.Label>Carreras y turno de cursada</Form.Label>
+        <Row className="g-2">
+          <Col md={6}>
+            <div className="border rounded p-2" style={{ maxHeight: '240px', overflowY: 'auto' }}>
+              <div className="small text-muted mb-1">Carreras</div>
+              {selectableDegrees.length === 0 ? (
+                <span className="text-muted">No hay carreras activas. Cree carreras primero.</span>
+              ) : (
+                selectableDegrees.map((d) => {
+                  const id = degId(d);
+                  if (!id) return null;
+                  const dis = degreeCheckboxDisabled(d);
+                  return (
+                    <Form.Check
+                      key={id}
+                      type="checkbox"
+                      id={`deg-${id}`}
+                      label={d.name + (d.nivel ? ` (${etiquetaNivel(d.nivel)})` : '')}
+                      title={degreeCheckboxTitle(d)}
+                      checked={(data.degreeIds || []).includes(id)}
+                      disabled={readOnly || dis}
+                      onChange={() => {
+                        if (!dis && !readOnly) toggleDegree(id);
+                      }}
+                    />
+                  );
+                })
+              )}
+            </div>
+          </Col>
+          <Col md={6}>
+            <div className="border rounded p-2" style={{ maxHeight: '240px', overflowY: 'auto' }}>
+              <div className="small text-muted mb-1">Turno por carrera</div>
+              {(data.degreeIds || []).length === 0 ? (
+                <span className="text-muted small">Marque al menos una carrera a la izquierda.</span>
+              ) : (
+                (data.degreeIds || []).map((did) => {
+                  const deg = (degrees || []).find((x) => degId(x) === did);
+                  const label = deg
+                    ? deg.name + (deg.nivel ? ` (${etiquetaNivel(deg.nivel)})` : '')
+                    : did;
+                  const opts = shiftsForDegree(deg, shifts);
+                  const cur = (data.degreeShiftsByDegree && data.degreeShiftsByDegree[did]) || '';
+                  return (
+                    <div key={did} className="mb-3 pb-2 border-bottom">
+                      <div className="small fw-semibold mb-1">{label}</div>
+                      {opts.length === 0 ? (
+                        <span className="text-danger small">
+                          No hay turnos en Administración → Turnos compatibles con esta carrera (configure turnos en
+                          la carrera y en Turnos).
+                        </span>
+                      ) : (
+                        opts.map((sh) => {
+                          const sid = shiftSid(sh);
+                          if (!sid) return null;
+                          return (
+                            <Form.Check
+                              key={sid}
+                              inline
+                              type="radio"
+                              name={`student-shift-${did}`}
+                              id={`student-shift-${did}-${sid}`}
+                              label={sh.type || sh.Type || sid}
+                              checked={cur === sid}
+                              disabled={readOnly}
+                              onChange={() => setShiftForDegree(did, sid)}
+                            />
+                          );
+                        })
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </Col>
+        </Row>
+        <Form.Text className="text-muted">
+          Por cada carrera elegida indique el turno de cursada (mañana, tarde o vespertino según la colección Turnos).
+        </Form.Text>
       </Form.Group>
 
       <Form.Group className="mb-3" controlId="studentPortalPassword">
         <Form.Label>Contraseña de acceso al portal (alumno)</Form.Label>
-        <Form.Control
-          type="password"
-          autoComplete="new-password"
-          value={newPortalPassword}
-          onChange={(e) => {
-            setNewPortalPassword(e.target.value);
-            setPortalPwdError('');
-          }}
-          placeholder={data.id ? 'Dejar vacío para no cambiar' : 'Mínimo 6 caracteres para permitir ingreso al sistema'}
-          readOnly={readOnly}
-        />
+        <InputGroup>
+          <Form.Control
+            type={portalPwdRevealPress ? 'text' : 'password'}
+            autoComplete="new-password"
+            value={newPortalPassword}
+            onChange={(e) => {
+              setNewPortalPassword(e.target.value);
+              setPortalPwdError('');
+            }}
+            placeholder={data.id ? 'Dejar vacío para no cambiar' : 'Mínimo 6 caracteres para permitir ingreso al sistema'}
+            readOnly={readOnly}
+          />
+          <Button
+            variant="outline-secondary"
+            type="button"
+            title="Mantener presionado para ver la contraseña"
+            aria-label="Mostrar contraseña mientras se mantiene presionado"
+            tabIndex={-1}
+            disabled={readOnly}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setPortalPwdRevealPress(true);
+            }}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              setPortalPwdRevealPress(true);
+            }}
+          >
+            <FontAwesomeIcon icon={portalPwdRevealPress ? faEyeSlash : faEye} />
+          </Button>
+        </InputGroup>
         {portalPwdError ? <div className="text-danger small mt-1">{portalPwdError}</div> : null}
         <Form.Text className="text-muted">
           El alumno podrá iniciar sesión con su correo y esta contraseña. Solo el administrativo puede asignarla o

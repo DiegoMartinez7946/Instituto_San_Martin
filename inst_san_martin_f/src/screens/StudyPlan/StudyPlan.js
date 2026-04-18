@@ -1,23 +1,26 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button, Container, Row, Col, Form, InputGroup } from 'react-bootstrap';
-import ModalDegree from './Modal/ModalDegree';
+import ModalStudyPlan from './Modal/ModalStudyPlan';
 import Table from '../../components/Table/Table';
 import Notification from '../../components/Notification/Notification';
 import ConfirmChangeEstadoModal from '../../components/ConfirmChangeEstadoModal/ConfirmChangeEstadoModal';
 
 import { useGlobal } from '../../context/Global/GlobalProvider';
-import { getDegree, addDegree, changeActiveDegree, updateDegree } from '../../context/Global/actions/DegreeActions';
-import { getStudyPlans } from '../../context/Global/actions/StudyPlanActions';
+import {
+  getStudyPlans,
+  addStudyPlan,
+  updateStudyPlan,
+  changeActiveStudyPlan
+} from '../../context/Global/actions/StudyPlanActions';
 
-import styles from './Degree.module.css';
+import styles from './StudyPlan.module.css';
 import listToolbar from '../common/ListToolbar.module.css';
 
-const Degree = () => {
-
+const StudyPlan = () => {
   const [globalState, globalDispatch] = useGlobal();
   const [show, setShow] = useState(false);
   const [dataRow, setDataRow] = useState('');
-  const [dataDegrees, setDataDegrees] = useState([]);
+  const [rows, setRows] = useState([]);
   const [searchText, setSearchText] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [error, setError] = useState(null);
@@ -25,21 +28,18 @@ const Degree = () => {
   const [estadoConfirmLoading, setEstadoConfirmLoading] = useState(false);
 
   const showError = (message, type) => {
-    message ?
-    setError(
-      <Notification 
-        message={message}
-        type={type}
-        show={showError}
-      />  
-    ) :
-    setError(null);
+    message
+      ? setError(
+          <Notification message={message} type={type} show={showError} />
+        )
+      : setError(null);
   };
 
-  const refreshDegrees = () => getDegree(globalDispatch);
+  const refreshPlans = () => getStudyPlans(globalDispatch);
 
   const buildNotification = (result) => {
-    switch (result.code) {
+    const c = result && result.code !== undefined && result.code !== null ? Number(result.code) : NaN;
+    switch (c) {
       case 199:
         showError(result.message, 'warning');
         break;
@@ -48,58 +48,61 @@ const Degree = () => {
         showError(result.message, 'success');
         break;
       case 400:
+      case 422:
         showError(result.message, 'danger');
-        break; 
+        break;
       default:
+        if (result && result.message) showError(result.message, 'danger');
         break;
     }
   };
 
   useEffect(() => {
-    refreshDegrees();
-    getStudyPlans(globalDispatch).catch(() => {});
+    refreshPlans().catch(() => {});
   }, []);
 
   useEffect(() => {
-    setDataDegrees(Array.isArray(globalState.degrees) ? globalState.degrees : []);
-  }, [globalState]);
+    const list = Array.isArray(globalState.studyPlans) ? globalState.studyPlans : [];
+    setRows(
+      list.map((p) => ({
+        id: p.id || p.ID,
+        nombre: p.nombre,
+        numeroResolucion: p.numeroResolucion,
+        cohorte: p.cohorte,
+        extension: p.extension,
+        anioAprobacion: p.anioAprobacion,
+        anioCaducidad: p.anioCaducidad,
+        cargaHoraria: p.cargaHoraria,
+        active: p.active
+      }))
+    );
+  }, [globalState.studyPlans]);
 
   const saveEventHandler = async (e) => {
     const result = !(e.id || e.ID)
-      ? await addDegree(globalDispatch, e)
-      : await updateDegree(globalDispatch, e);
+      ? await addStudyPlan(globalDispatch, e)
+      : await updateStudyPlan(globalDispatch, e);
 
     buildNotification(result);
     const codeNum = result && result.code !== undefined ? Number(result.code) : NaN;
     if (codeNum !== 200 && codeNum !== 201) {
       return result;
     }
-    await refreshDegrees();
-    setShow((current) => !current);
+    await refreshPlans();
+    setShow(false);
     setDataRow('');
     return result;
   };
 
-  const addDegreeEvent = () => {
-    setDataRow('');
-    setShow((current) => !current);
-  };
-
-  const closeDegreeEvent = () => {
-    setDataRow('');
-    setShow(current => !current);
-  };
-
-  const tableEvents = async (e, row) => {
-    const full =
-      (globalState.degrees || []).find((x) => String(x.id || x.ID) === String(row.id)) || row;
-    if (e === 'edit') {
+  const tableEvents = async (ev, d) => {
+    if (ev === 'edit') {
+      const full = (globalState.studyPlans || []).find((p) => (p.id || p.ID) === (d.id || d.ID)) || d;
       setDataRow(full);
-      setShow((current) => !current);
+      setShow(true);
     }
-    if (e === 'check') {
-      const cur = full.active === true;
-      setEstadoConfirm({ row: full, fromActive: cur, toActive: !cur });
+    if (ev === 'check') {
+      const cur = d.active === true;
+      setEstadoConfirm({ row: d, fromActive: cur, toActive: !cur });
     }
   };
 
@@ -107,60 +110,43 @@ const Degree = () => {
     if (!estadoConfirm) return;
     setEstadoConfirmLoading(true);
     const item = { ...estadoConfirm.row, active: estadoConfirm.toActive };
-    const result = await changeActiveDegree(globalDispatch, item);
+    const result = await changeActiveStudyPlan(globalDispatch, item);
     buildNotification(result);
     setEstadoConfirmLoading(false);
     if (Number(result.code) === 200) {
       setEstadoConfirm(null);
+      await refreshPlans();
     }
   };
-  const filteredDegrees = useMemo(() => {
-    const q = String(appliedSearch || '').trim().toLowerCase();
-    if (!q) return dataDegrees;
-    return (dataDegrees || []).filter((d) => String(d.name || '').toLowerCase().includes(q));
-  }, [dataDegrees, appliedSearch]);
 
-  const degreeTableRows = useMemo(
-    () =>
-      (filteredDegrees || []).map((d) => {
-        const hid = d.id || d.ID;
-        const raw = d.studyPlanId != null ? String(d.studyPlanId).trim() : '';
-        const legacyOid =
-          !raw ||
-          raw === '000000000000000000000000' ||
-          /^[a-f0-9]{24}$/i.test(raw);
-        const planRef = legacyOid ? '' : raw;
-        return {
-          id: hid,
-          name: d.name,
-          nivel: d.nivel,
-          'plan de estudio': planRef || '—',
-          turnos: Array.isArray(d.turnos) ? d.turnos.join(', ') : '',
-          active: d.active !== false
-        };
-      }),
-    [filteredDegrees]
-  );
+  const filtered = useMemo(() => {
+    const q = String(appliedSearch || '').trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => String(r.numeroResolucion || '').toLowerCase().includes(q));
+  }, [rows, appliedSearch]);
 
   return (
     <React.Fragment>
       <Container fluid className={styles.container}>
-        { error }
+        {error}
         <Row>
-          <h1>Carreras</h1>
+          <h1>Planes de estudio</h1>
         </Row>
         <hr />
         <br />
         <div className={listToolbar.toolbarRow}>
           <div className={listToolbar.toolbarHalf}>
-              <Button 
-                className="w-100"
-                variant="primary"
-                size="xs"
-                onClick={() => addDegreeEvent()}
-              >
-                Agregar
-              </Button>
+            <Button
+              className="w-100"
+              variant="primary"
+              size="xs"
+              onClick={() => {
+                setDataRow('');
+                setShow(true);
+              }}
+            >
+              Agregar
+            </Button>
           </div>
           <div className={listToolbar.toolbarHalf}>
             <InputGroup className="w-100">
@@ -172,7 +158,7 @@ const Degree = () => {
                   setSearchText(v);
                   if (!String(v).trim()) setAppliedSearch('');
                 }}
-                placeholder="Buscar por nombre"
+                placeholder="Buscar por número de resolución"
               />
               <Button type="button" className={listToolbar.buscarBtn} onClick={() => setAppliedSearch(searchText)}>
                 Buscar
@@ -180,26 +166,29 @@ const Degree = () => {
             </InputGroup>
           </div>
         </div>
-        <br />  
+        <br />
         <Row className={styles.tableRowWrap}>
           <Col xs={12} className="px-2 px-md-3 min-w-0">
             <Table
-              key={'degree'}
+              key="studyplan"
               tableEvents={(e, d) => tableEvents(e, d)}
-              data={degreeTableRows}
-              actions={'ec'}
-              wideKeys={['plan de estudio']}
+              data={filtered}
+              actions="ec"
+              wideKeys={[]}
             />
           </Col>
         </Row>
       </Container>
-      <ModalDegree
+      <ModalStudyPlan
         show={show}
-        handleClose={closeDegreeEvent}
+        handleClose={() => {
+          setDataRow('');
+          setShow(false);
+        }}
         saveEvent={(e) => saveEventHandler(e)}
         data={dataRow || ''}
         changeActive={async (payload) => {
-          const result = await changeActiveDegree(globalDispatch, payload);
+          const result = await changeActiveStudyPlan(globalDispatch, payload);
           buildNotification(result);
           return result;
         }}
@@ -207,8 +196,12 @@ const Degree = () => {
       <ConfirmChangeEstadoModal
         show={!!estadoConfirm}
         onHide={() => !estadoConfirmLoading && setEstadoConfirm(null)}
-        kind="carrera"
-        itemName={estadoConfirm && estadoConfirm.row ? estadoConfirm.row.name : ''}
+        kind="planestudio"
+        itemName={
+          estadoConfirm && estadoConfirm.row
+            ? estadoConfirm.row.nombre || estadoConfirm.row.numeroResolucion || ''
+            : ''
+        }
         fromActive={estadoConfirm ? estadoConfirm.fromActive : true}
         toActive={estadoConfirm ? estadoConfirm.toActive : true}
         onConfirm={confirmEstadoToggle}
@@ -218,4 +211,4 @@ const Degree = () => {
   );
 };
 
-export default Degree;
+export default StudyPlan;

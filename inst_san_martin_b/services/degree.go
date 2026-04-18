@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"regexp"
 	"strings"
 
@@ -15,6 +16,38 @@ var allowedDegreeNiveles = map[string]struct{}{
 	"secundario":    {},
 	"terciario":     {},
 	"universitario": {},
+}
+
+var allowedDegreeTurnoCodes = map[string]struct{}{
+	"manana": {},
+	"tarde":  {},
+	"noche":  {},
+}
+
+var degreeTurnoStableOrder = []string{"manana", "tarde", "noche"}
+
+func normalizeDegreeTurnos(in []string) ([]string, string) {
+	seen := make(map[string]struct{})
+	for _, raw := range in {
+		c := strings.ToLower(strings.TrimSpace(raw))
+		if c == "" {
+			continue
+		}
+		if _, ok := allowedDegreeTurnoCodes[c]; !ok {
+			return nil, "Solo se permiten los turnos: mañana, tarde y noche"
+		}
+		seen[c] = struct{}{}
+	}
+	if len(seen) == 0 {
+		return nil, "Seleccione al menos un turno en el que se dicta la carrera"
+	}
+	out := make([]string, 0, len(seen))
+	for _, c := range degreeTurnoStableOrder {
+		if _, ok := seen[c]; ok {
+			out = append(out, c)
+		}
+	}
+	return out, ""
 }
 
 func normalizeNivel(n string) string {
@@ -67,19 +100,21 @@ func InsertDegreeService(d models.Degree) (string, int, error) {
 	if !isAllowedDegreeNivel(nivel) {
 		return "Debe seleccionar un nivel valido para la carrera", 199, nil
 	}
-	resolucion := strings.TrimSpace(d.ResolucionID)
-	if resolucion == "" {
-		return "Debe ingresar el Resolucion ID", 199, nil
+	turnos, msgTurnos := normalizeDegreeTurnos(d.Turnos)
+	if msgTurnos != "" {
+		return msgTurnos, 199, nil
 	}
-	if db.IsResolucionIDTakenByOther(resolucion, primitive.ObjectID{}) {
-		return "Ya existe otra carrera con ese Resolucion ID", 199, nil
+	studyNR := strings.TrimSpace(d.StudyPlanID)
+	if studyNR != "" && !db.StudyPlanActiveByNumeroResolucion(studyNR) {
+		return "El plan de estudio indicado no existe o no esta activo", 199, nil
 	}
 
 	row := models.Degree{
-		Name:         d.Name,
-		Nivel:        nivel,
-		ResolucionID: resolucion,
-		Active:       d.Active,
+		Name:        d.Name,
+		Nivel:       nivel,
+		StudyPlanID: studyNR,
+		Turnos:      turnos,
+		Active:      d.Active,
 	}
 
 	msg, err := db.InsertDegreeDB(row)
@@ -94,6 +129,9 @@ func InsertDegreeService(d models.Degree) (string, int, error) {
 /***************************************************************/
 /* UpdateDegreeService update the academy degree */
 func UpdateDegreeService(d models.Degree) (string, int, error) {
+	if d.ID.IsZero() {
+		return "Id de carrera invalido o no enviado", 199, nil
+	}
 	if len(d.Name) == 0 {
 		return "La carrera no puede venir vacia", 199, nil
 	}
@@ -112,18 +150,23 @@ func UpdateDegreeService(d models.Degree) (string, int, error) {
 	if !isAllowedDegreeNivel(nivel) {
 		return "Debe seleccionar un nivel valido para la carrera", 199, nil
 	}
-	resolucion := strings.TrimSpace(d.ResolucionID)
-	if resolucion == "" {
-		return "Debe ingresar el Resolucion ID", 199, nil
+	turnos, msgTurnos := normalizeDegreeTurnos(d.Turnos)
+	if msgTurnos != "" {
+		return msgTurnos, 199, nil
 	}
-	if db.IsResolucionIDTakenByOther(resolucion, d.ID) {
-		return "Ya existe otra carrera con ese Resolucion ID", 199, nil
+	studyNR := strings.TrimSpace(d.StudyPlanID)
+	if studyNR != "" && !db.StudyPlanActiveByNumeroResolucion(studyNR) {
+		return "El plan de estudio indicado no existe o no esta activo", 199, nil
 	}
 	d.Nivel = nivel
-	d.ResolucionID = resolucion
+	d.StudyPlanID = studyNR
+	d.Turnos = turnos
 
 	_, err := db.UpdateDegreeDB(d)
 	if err != nil {
+		if errors.Is(err, db.ErrDegreeNotFound) {
+			return "No se encontro la carrera con el id indicado", 199, nil
+		}
 		return "Hubo un error al actualizar la carrera en la base", 400, err
 	}
 
@@ -134,9 +177,15 @@ func UpdateDegreeService(d models.Degree) (string, int, error) {
 /***************************************************************/
 /* UpdateDegreeStatusService update the academy degree active */
 func UpdateDegreeStatusService(d models.Degree) (string, int, error) {
+	if d.ID.IsZero() {
+		return "Id de carrera invalido o no enviado", 199, nil
+	}
 
 	_, err := db.UpdateStatusDegreeDB(d)
 	if err != nil {
+		if errors.Is(err, db.ErrDegreeNotFound) {
+			return "No se encontro la carrera con el id indicado", 199, nil
+		}
 		return "Hubo un error al actualizar el estado de la carrera en la base", 400, err
 	}
 

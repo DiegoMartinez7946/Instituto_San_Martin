@@ -2,7 +2,9 @@ package db
 
 import (
 	"context"
+	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/benjacifre10/san_martin_b/config"
@@ -12,6 +14,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// ErrDegreeNotFound ningún documento coincidió con el _id indicado.
+var ErrDegreeNotFound = errors.New("degree not found")
+
 /***************************************************************/
 /***************************************************************/
 /* GetDegreesDB get the degrees from db */
@@ -19,7 +24,7 @@ func GetDegreesDB() ([]*models.Degree, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
 	defer cancel()
 
-	db := config.MongoConnection.Database("san_martin")
+	db := config.WorkingDatabase()
 	collection := db.Collection("degree")
 
 	var results []*models.Degree
@@ -53,14 +58,17 @@ func InsertDegreeDB(d models.Degree) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
 	defer cancel()
 
-	db := config.MongoConnection.Database("san_martin")
+	db := config.WorkingDatabase()
 	collection := db.Collection("degree")
 
 	row := bson.M{
-		"name":          d.Name,
-		"nivel":         d.Nivel,
-		"resolucionid":  d.ResolucionID,
-		"active":        d.Active,
+		"name":   d.Name,
+		"nivel":  d.Nivel,
+		"turnos": d.Turnos,
+		"active": d.Active,
+	}
+	if s := strings.TrimSpace(d.StudyPlanID); s != "" {
+		row["studyplanid"] = s
 	}
 
 	result, err := collection.InsertOne(ctx, row)
@@ -79,7 +87,7 @@ func CheckExistDegree(nameDegree string) (string, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
 	defer cancel()
 
-	db := config.MongoConnection.Database("san_martin")
+	db := config.WorkingDatabase()
 	collection := db.Collection("degree")
 
 	condition := bson.M {
@@ -101,7 +109,7 @@ func IsDegreeNameTakenByOther(nameDegree string, excludeID primitive.ObjectID) b
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	db := config.MongoConnection.Database("san_martin")
+	db := config.WorkingDatabase()
 	collection := db.Collection("degree")
 
 	var result models.Degree
@@ -115,34 +123,12 @@ func IsDegreeNameTakenByOther(nameDegree string, excludeID primitive.ObjectID) b
 	return result.ID != excludeID
 }
 
-/* IsResolucionIDTakenByOther returns true if another degree already uses this resolucionid (trimmed exact match) */
-func IsResolucionIDTakenByOther(resolucionID string, excludeID primitive.ObjectID) bool {
-	if resolucionID == "" {
-		return false
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	db := config.MongoConnection.Database("san_martin")
-	collection := db.Collection("degree")
-
-	var result models.Degree
-	err := collection.FindOne(ctx, bson.M{"resolucionid": resolucionID}).Decode(&result)
-	if err != nil || result.ID.IsZero() {
-		return false
-	}
-	if excludeID.IsZero() {
-		return true
-	}
-	return result.ID != excludeID
-}
-
 /* GetDegreeByID returns one degree by id (any active flag) */
 func GetDegreeByID(id primitive.ObjectID) (models.Degree, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	db := config.MongoConnection.Database("san_martin")
+	db := config.WorkingDatabase()
 	collection := db.Collection("degree")
 
 	var d models.Degree
@@ -160,28 +146,40 @@ func UpdateDegreeDB(d models.Degree) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
 	defer cancel()
 
-	db := config.MongoConnection.Database("san_martin")
+	db := config.WorkingDatabase()
 	collection := db.Collection("degree")
 
 	row := make(map[string]interface{})
 	row["name"] = d.Name
 	row["nivel"] = d.Nivel
-	row["resolucionid"] = d.ResolucionID
+	row["turnos"] = d.Turnos
 
-	updateString := bson.M {
-		"$set": row,
+	study := strings.TrimSpace(d.StudyPlanID)
+	unsetDoc := bson.M{"resolucionid": ""}
+	if study == "" {
+		unsetDoc["studyplanid"] = ""
+	} else {
+		row["studyplanid"] = study
+	}
+	updateString := bson.M{
+		"$set":   row,
+		"$unset": unsetDoc,
 	}
 
-	var idDegree string
-	idDegree = d.ID.Hex()
-
-	objID, _ := primitive.ObjectIDFromHex(idDegree)
-
-	filter := bson.M { "_id": bson.M { "$eq": objID }}
-
-	_, err := collection.UpdateOne(ctx, filter, updateString)
+	idDegree := strings.TrimSpace(d.ID.Hex())
+	objID, err := primitive.ObjectIDFromHex(idDegree)
 	if err != nil {
 		return false, err
+	}
+
+	filter := bson.M{"_id": objID}
+
+	ur, err := collection.UpdateOne(ctx, filter, updateString)
+	if err != nil {
+		return false, err
+	}
+	if ur.MatchedCount == 0 {
+		return false, ErrDegreeNotFound
 	}
 
 	return true, nil
@@ -194,7 +192,7 @@ func UpdateStatusDegreeDB(d models.Degree) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
 	defer cancel()
 
-	db := config.MongoConnection.Database("san_martin")
+	db := config.WorkingDatabase()
 	collection := db.Collection("degree")
 
 	row := make(map[string]interface{})
@@ -204,16 +202,20 @@ func UpdateStatusDegreeDB(d models.Degree) (bool, error) {
 		"$set": row,
 	}
 
-	var idDegree string
-	idDegree = d.ID.Hex()
-
-	objID, _ := primitive.ObjectIDFromHex(idDegree)
-
-	filter := bson.M { "_id": bson.M { "$eq": objID }}
-
-	_, err := collection.UpdateOne(ctx, filter, updateString)
+	idDegree := strings.TrimSpace(d.ID.Hex())
+	objID, err := primitive.ObjectIDFromHex(idDegree)
 	if err != nil {
 		return false, err
+	}
+
+	filter := bson.M{"_id": objID}
+
+	ur, err := collection.UpdateOne(ctx, filter, updateString)
+	if err != nil {
+		return false, err
+	}
+	if ur.MatchedCount == 0 {
+		return false, ErrDegreeNotFound
 	}
 
 	return true, nil
@@ -226,7 +228,7 @@ func ExistsDegreeByID(id primitive.ObjectID) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
 	defer cancel()
 
-	db := config.MongoConnection.Database("san_martin")
+	db := config.WorkingDatabase()
 	collection := db.Collection("degree")
 
 	var d models.Degree
@@ -239,7 +241,7 @@ func DegreeDocumentExists(id primitive.ObjectID) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
 	defer cancel()
 
-	db := config.MongoConnection.Database("san_martin")
+	db := config.WorkingDatabase()
 	collection := db.Collection("degree")
 
 	n, err := collection.CountDocuments(ctx, bson.M{"_id": id})

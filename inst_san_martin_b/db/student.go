@@ -27,6 +27,41 @@ func mergeStudentDegreeIDsFromLegacy(s *models.Student) {
 	}
 }
 
+/* mergeStudentDegreesPostDecode evita duplicar carrera en Mongo: la fuente de verdad persistida es degreeshifts.
+   degreeIds en memoria se deduce de degreeshifts. Documentos antiguos sólo con degreeids reciben degreeshifts por defecto. */
+func mergeStudentDegreesPostDecode(s *models.Student) {
+	if s == nil {
+		return
+	}
+	mergeStudentDegreeIDsFromLegacy(s)
+
+	if len(s.DegreeShifts) > 0 {
+		var ids []primitive.ObjectID
+		for _, row := range s.DegreeShifts {
+			if !row.DegreeID.IsZero() {
+				ids = append(ids, row.DegreeID)
+			}
+		}
+		s.DegreeIDs = ids
+		return
+	}
+
+	if len(s.DegreeIDs) == 0 {
+		s.DegreeShifts = nil
+		return
+	}
+	sid, ok := GetFirstAvailableShiftID()
+	if !ok {
+		return
+	}
+	for _, did := range s.DegreeIDs {
+		if did.IsZero() {
+			continue
+		}
+		s.DegreeShifts = append(s.DegreeShifts, models.StudentDegreeShift{DegreeID: did, ShiftID: sid})
+	}
+}
+
 func ensureStudentActiveDefaults(ctx context.Context) {
 	ensureStudentActiveField.Do(func() {
 		db := config.MongoConnection.Database("san_martin")
@@ -69,7 +104,7 @@ func GetStudentsDB() ([]*models.Student, bool) {
 		if err := cur.Decode(&row); err != nil {
 			return results, false
 		}
-		mergeStudentDegreeIDsFromLegacy(&row)
+		mergeStudentDegreesPostDecode(&row)
 		results = append(results, &row)
 	}
 	_ = cur.Close(ctx)
@@ -93,7 +128,7 @@ func InsertStudentDB(s models.Student) (string, error) {
 		"nivelaprobado": s.NivelAprobado,
 		"modalidad":     s.Modalidad,
 		"condicion":     s.Condicion,
-		"degreeids":     s.DegreeIDs,
+		"degreeshifts":  s.DegreeShifts,
 		"active":        s.Active,
 		"createdat":     s.CreatedAt,
 		"updatedat":     s.UpdatedAt,
@@ -129,7 +164,7 @@ func UpdateStudentDB(s models.Student) (bool, error) {
 		"nivelaprobado": s.NivelAprobado,
 		"modalidad":     s.Modalidad,
 		"condicion":     s.Condicion,
-		"degreeids":     s.DegreeIDs,
+		"degreeshifts":  s.DegreeShifts,
 		"active":        s.Active,
 		"updatedat":     s.UpdatedAt,
 	}
@@ -138,8 +173,10 @@ func UpdateStudentDB(s models.Student) (bool, error) {
 	}
 	update := bson.M{
 		"$set": setSt,
-		// Clave legacy en camelCase; el driver Go usa "degreeids".
-		"$unset": bson.M{"degreeIds": ""},
+		"$unset": bson.M{
+			"degreeIds":  "",
+			"degreeids":  "",
+		},
 	}
 
 	_, err := collection.UpdateOne(ctx, filter, update)
@@ -169,7 +206,7 @@ func FindStudentByEmailInsensitiveDB(email string) (models.Student, bool) {
 	if err != nil || st.ID.IsZero() {
 		return models.Student{}, false
 	}
-	mergeStudentDegreeIDsFromLegacy(&st)
+	mergeStudentDegreesPostDecode(&st)
 	return st, true
 }
 
@@ -189,7 +226,7 @@ func FindStudentByIDDB(id primitive.ObjectID) (models.Student, bool) {
 	if err != nil {
 		return models.Student{}, false
 	}
-	mergeStudentDegreeIDsFromLegacy(&st)
+	mergeStudentDegreesPostDecode(&st)
 	if st.ID.IsZero() {
 		return models.Student{}, false
 	}
@@ -225,8 +262,8 @@ func FindStudentForUserSync(email, dni string) (models.Student, bool) {
 	return FindStudentByDNIDB(d, primitive.NilObjectID)
 }
 
-/* UpdateStudentEnrollmentFieldsDB actualiza carrera y modalidad/condición (sincronización desde usuario) */
-func UpdateStudentEnrollmentFieldsDB(id primitive.ObjectID, degreeIDs []primitive.ObjectID, modalidad, condicion string) (bool, error) {
+/* UpdateStudentEnrollmentFieldsDB actualiza carrera, turnos por carrera y modalidad/condición (sincronización desde usuario). */
+func UpdateStudentEnrollmentFieldsDB(id primitive.ObjectID, degreeIDs []primitive.ObjectID, modalidad, condicion string, userShiftHexIDs []string) (bool, error) {
 	if id.IsZero() {
 		return false, nil
 	}
@@ -240,14 +277,46 @@ func UpdateStudentEnrollmentFieldsDB(id primitive.ObjectID, degreeIDs []primitiv
 		degreeIDs = []primitive.ObjectID{}
 	}
 
+	preferShift := primitive.NilObjectID
+	if len(userShiftHexIDs) > 0 {
+		if oid, err := primitive.ObjectIDFromHex(strings.TrimSpace(userShiftHexIDs[0])); err == nil && !oid.IsZero() {
+			preferShift = oid
+		}
+	}
+	if preferShift.IsZero() {
+		var ok bool
+		preferShift, ok = GetFirstAvailableShiftID()
+		if !ok {
+			preferShift = primitive.NilObjectID
+		}
+	}
+	var degreeShifts []models.StudentDegreeShift
+	for _, did := range degreeIDs {
+		if did.IsZero() {
+			continue
+		}
+		sid := preferShift
+		if sid.IsZero() {
+			var ok bool
+			sid, ok = GetFirstAvailableShiftID()
+			if !ok {
+				break
+			}
+		}
+		degreeShifts = append(degreeShifts, models.StudentDegreeShift{DegreeID: did, ShiftID: sid})
+	}
+
 	res, err := collection.UpdateOne(ctx, bson.M{"_id": id}, bson.M{
 		"$set": bson.M{
-			"degreeids": degreeIDs,
-			"modalidad": modalidad,
-			"condicion": condicion,
-			"updatedat": time.Now(),
+			"degreeshifts": degreeShifts,
+			"modalidad":    modalidad,
+			"condicion":    condicion,
+			"updatedat":    time.Now(),
 		},
-		"$unset": bson.M{"degreeIds": ""},
+		"$unset": bson.M{
+			"degreeIds": "",
+			"degreeids": "",
+		},
 	})
 	if err != nil {
 		return false, err
@@ -276,7 +345,7 @@ func FindStudentByDNIDB(dni string, excludeID primitive.ObjectID) (models.Studen
 	if err != nil {
 		return st, false
 	}
-	mergeStudentDegreeIDsFromLegacy(&st)
+	mergeStudentDegreesPostDecode(&st)
 	return st, st.DNI != ""
 }
 

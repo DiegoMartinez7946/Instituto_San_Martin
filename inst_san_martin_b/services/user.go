@@ -393,7 +393,7 @@ func UpdateUserService(idHex string, name, dni, address, phone, email, password,
 	}
 
 	if doSyncStudent && !syncStudentID.IsZero() {
-		_, errSync := db.UpdateStudentEnrollmentFieldsDB(syncStudentID, degStored, syncModalidad, syncCondicion)
+		_, errSync := db.UpdateStudentEnrollmentFieldsDB(syncStudentID, degStored, syncModalidad, syncCondicion, shiftStored)
 		if errSync != nil {
 			return "Usuario actualizado pero no se pudo sincronizar la ficha de alumno", 400, errSync
 		}

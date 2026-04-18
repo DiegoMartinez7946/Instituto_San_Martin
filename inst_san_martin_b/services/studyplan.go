@@ -1,125 +1,140 @@
 package services
 
 import (
+	"errors"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/benjacifre10/san_martin_b/db"
 	"github.com/benjacifre10/san_martin_b/models"
 )
 
-/***************************************************************/
-/***************************************************************/
-/* GetStudyPlansService call the db to get the study plans */
-func GetStudyPlansService() ([]*models.StudyPlan, bool) {
-	// call the db
-	result, status := db.GetStudyPlansDB()
-	if status == false {
-		return result, status
-	}
+var reNumeroResolucion = regexp.MustCompile(`^\d{4}/\d{2}$`)
 
-	return result, status
+func normalizeNumeroResolucion(s string) string {
+	return strings.TrimSpace(s)
 }
 
-/***************************************************************/
-/***************************************************************/
-/* InsertStudyPlanService call the db to insert the study plan */
+func validateNombrePlan(nombre string) (string, int, error) {
+	n := strings.TrimSpace(nombre)
+	if n == "" {
+		return "El nombre del plan de estudio no puede estar vacio", 199, nil
+	}
+	return n, 0, nil
+}
+
+func validateStudyPlanFields(nombre, nr string, cohorte, extension, anioApr, carga int) (string, int, error) {
+	if msg, code, err := validateNombrePlan(nombre); code == 199 {
+		return msg, code, err
+	}
+	nr = normalizeNumeroResolucion(nr)
+	if !reNumeroResolucion.MatchString(nr) {
+		return "Numero de resolucion invalido: use el formato 6555/24 (cuatro digitos, barra, dos digitos de año)", 199, nil
+	}
+	if cohorte < 0 || cohorte > 9 {
+		return "Cohorte (años de validez) debe ser un digito entre 0 y 9", 199, nil
+	}
+	if extension < 0 || extension > 9 {
+		return "Extension debe ser un digito entre 0 y 9", 199, nil
+	}
+	if anioApr < 1000 || anioApr > 9999 {
+		return "Año de aprobacion debe tener 4 digitos", 199, nil
+	}
+	suffix, err := strconv.Atoi(nr[len(nr)-2:])
+	if err == nil && suffix != anioApr%100 {
+		return "Los dos digitos tras la barra deben coincidir con el año de aprobacion (ej. 2024 -> .../24)", 199, nil
+	}
+	if carga < 1 || carga > 99999 {
+		return "Carga horaria debe ser un entero entre 1 y 99999", 199, nil
+	}
+	return "", 0, nil
+}
+
+func computeAnioCaducidad(anioApr, cohorte, extension int) int {
+	return anioApr + cohorte + extension
+}
+
+/* GetStudyPlansService lista planes de estudio */
+func GetStudyPlansService() ([]*models.StudyPlan, bool) {
+	return db.GetStudyPlansDB()
+}
+
+/* InsertStudyPlanService alta de plan */
 func InsertStudyPlanService(s models.StudyPlan) (string, int, error) {
-	// check if the study plan is empty
-	if len(s.Name) == 0 {
-		return "No puede registrar un nombre de plan de estudio vacio", 199, nil
-	}
-
-	// check if the code of study plan is empty
-	if len(s.Code) == 0 {
-		return "No puede registrar un codigo de plan de estudio vacio", 199, nil
-	}
-
-	// check if the code of study plan is empty
-	if len(s.DegreeId) == 0 {
-		return "No puede registrar plan de estudio sin una carrera asociada", 199, nil
-	}
-
-	// check if the degree is active
-	if s.State != true {
+	if s.Active != true {
 		return "El plan de estudio debe estar activo al crearse", 199, nil
 	}
-
-	// verify if the name has any number
-	anyNumber, errRegexp := regexp.MatchString(`\d+`, s.Name)
-	if anyNumber == true {
-		return "No puede registrar el nombre del plan de estudio con numeros", 199, errRegexp
+	msg, code, err := validateStudyPlanFields(s.Nombre, s.NumeroResolucion, s.Cohorte, s.Extension, s.AnioAprobacion, s.CargaHoraria)
+	if code == 199 {
+		return msg, code, err
 	}
-
-	// verify if the code has already exists
-	_, check, errorCheck := db.CheckExistStudyPlan(s.Code)
-	if check == true {
-		return "Ya existe ese codigo de plan de estudio en el sistema", 199, errorCheck
+	nombreOK := strings.TrimSpace(s.Nombre)
+	nr := normalizeNumeroResolucion(s.NumeroResolucion)
+	if db.IsNumeroResolucionTakenByOther(nr, s.ID) {
+		return "Ya existe un plan con ese numero de resolucion", 199, nil
 	}
-
-	row := models.StudyPlan {
-		Name: s.Name,
-		Code: s.Code,
-		DegreeId: s.DegreeId,
-		State: s.State,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	anioCad := computeAnioCaducidad(s.AnioAprobacion, s.Cohorte, s.Extension)
+	now := time.Now()
+	row := models.StudyPlan{
+		Nombre:           nombreOK,
+		NumeroResolucion: nr,
+		Cohorte:          s.Cohorte,
+		Extension:        s.Extension,
+		AnioAprobacion:   s.AnioAprobacion,
+		AnioCaducidad:    anioCad,
+		CargaHoraria:     s.CargaHoraria,
+		Active:           true,
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}
-
-	msg, err := db.InsertStudyPlanDB(row)
+	msgDB, err := db.InsertStudyPlanDB(row)
 	if err != nil {
-		return msg, 400, err
+		return msgDB, 400, err
 	}
-
-	return msg, 201, nil
+	return msgDB, 201, nil
 }
 
-/***************************************************************/
-/***************************************************************/
-/* UpdateStudyPlanService update the study plan */
+/* UpdateStudyPlanService actualiza plan */
 func UpdateStudyPlanService(s models.StudyPlan) (string, int, error) {
-	if len(s.Name) == 0 {
-		return "El plan de estudio no puede venir vacio", 199, nil
+	if s.ID.IsZero() {
+		return "Id de plan de estudio invalido o no enviado", 199, nil
 	}
-
-	// check if the code of study plan is empty
-	if len(s.Code) == 0 {
-		return "El codigo de plan de estudio no puede venir vacio", 199, nil
+	msg, code, err := validateStudyPlanFields(s.Nombre, s.NumeroResolucion, s.Cohorte, s.Extension, s.AnioAprobacion, s.CargaHoraria)
+	if code == 199 {
+		return msg, code, err
 	}
-
-	// check if the code of study plan is empty
-	if len(s.DegreeId) == 0 {
-		return "Debe venir una carrera al plan de estudio asociada", 199, nil
+	nombreOK := strings.TrimSpace(s.Nombre)
+	nr := normalizeNumeroResolucion(s.NumeroResolucion)
+	if db.IsNumeroResolucionTakenByOther(nr, s.ID) {
+		return "Ya existe otro plan con ese numero de resolucion", 199, nil
 	}
-	// verify if the type has any number
-	anyNumber, errRegexp := regexp.MatchString(`\d+`, s.Name)
-	if anyNumber == true {
-		return "No puede actualizar el plan de estudios con numeros", 199, errRegexp
-	}
-
-	// verify if the code has already exists
-	_, check, errorCheck := db.CheckExistStudyPlan(s.Code)
-	if check == true {
-		return "Ya existe ese codigo de plan de estudio en el sistema", 199, errorCheck
-	}
-
-	_, err := db.UpdateStudyPlanDB(s)
+	s.Nombre = nombreOK
+	s.NumeroResolucion = nr
+	s.AnioCaducidad = computeAnioCaducidad(s.AnioAprobacion, s.Cohorte, s.Extension)
+	s.UpdatedAt = time.Now()
+	_, err = db.UpdateStudyPlanDB(s)
 	if err != nil {
+		if errors.Is(err, db.ErrStudyPlanNotFound) {
+			return "No se encontro el plan de estudio con el id indicado", 199, nil
+		}
 		return "Hubo un error al actualizar el plan de estudio en la base", 400, err
 	}
-
 	return "El plan de estudio se actualizo correctamente", 200, nil
 }
 
-/***************************************************************/
-/***************************************************************/
-/* UpdateStudyPlanStateService update the study plan state */
-func UpdateStudyPlanStateService(s models.StudyPlan) (string, int, error) {
-
-	_, err := db.UpdateStateStudyPlanDB(s)
+/* UpdateStudyPlanActiveService activo / inactivo */
+func UpdateStudyPlanActiveService(s models.StudyPlan) (string, int, error) {
+	if s.ID.IsZero() {
+		return "Id de plan de estudio invalido o no enviado", 199, nil
+	}
+	_, err := db.UpdateStudyPlanActiveDB(s.ID, s.Active)
 	if err != nil {
+		if errors.Is(err, db.ErrStudyPlanNotFound) {
+			return "No se encontro el plan de estudio con el id indicado", 199, nil
+		}
 		return "Hubo un error al actualizar el estado del plan de estudio en la base", 400, err
 	}
-
 	return "El estado del plan de estudio se actualizo correctamente", 200, nil
 }

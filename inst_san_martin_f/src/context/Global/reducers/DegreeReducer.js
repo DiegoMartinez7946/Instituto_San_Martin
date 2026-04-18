@@ -14,7 +14,10 @@ export default (state, action) => {
         if (did === pid) {
           d.name = action.payload.name;
           d.nivel = action.payload.nivel;
-          d.resolucionId = action.payload.resolucionId;
+          d.turnos = action.payload.turnos;
+          if (Object.prototype.hasOwnProperty.call(action.payload, 'studyPlanId')) {
+            d.studyPlanId = action.payload.studyPlanId;
+          }
         }
         return d;
       });

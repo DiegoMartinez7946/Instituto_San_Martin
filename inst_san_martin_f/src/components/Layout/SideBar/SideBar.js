@@ -95,6 +95,15 @@ const SideBar = ({ show, click }) => {
                     <li>
                       <NavLink
                         className={styles.side_bar__link_submenu}
+                        to="/studyplan"
+                      >
+                        Plan de estudio
+                      </NavLink>
+                    </li>
+                    <hr />
+                    <li>
+                      <NavLink
+                        className={styles.side_bar__link_submenu}
                         to="/teachers"
                       >
                         Docentes

@@ -1,0 +1,14 @@
+.container {
+  margin-top: 60px;
+  justify-content: center;
+  max-width: 100%;
+}
+
+.tableRowWrap {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+h1 {
+  text-align: center;
+}

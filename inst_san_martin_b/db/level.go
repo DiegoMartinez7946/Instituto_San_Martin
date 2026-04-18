@@ -11,11 +11,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-const jerarquiaCollection = "jerarquia"
+const levelCollection = "level"
 
-var jerarquiaSeedOnce sync.Once
+var levelSeedOnce sync.Once
 
-func defaultJerarquiaRows() []interface{} {
+func defaultLevelRows() []interface{} {
 	return []interface{}{
 		bson.M{"nivel": "inicial", "jerarquia": 1},
 		bson.M{"nivel": "primario", "jerarquia": 2},
@@ -25,42 +25,42 @@ func defaultJerarquiaRows() []interface{} {
 	}
 }
 
-/* EnsureJerarquiaSeeded inserts default nivel → jerarquia rows if the collection is empty */
-func EnsureJerarquiaSeeded() {
-	jerarquiaSeedOnce.Do(func() {
+/* EnsureLevelSeeded inserta filas por defecto nivel → orden si la colección está vacía */
+func EnsureLevelSeeded() {
+	levelSeedOnce.Do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
 		db := config.MongoConnection.Database("san_martin")
-		collection := db.Collection(jerarquiaCollection)
+		collection := db.Collection(levelCollection)
 
 		n, err := collection.CountDocuments(ctx, bson.M{})
 		if err != nil {
-			log.Println("jerarquia CountDocuments:", err)
+			log.Println("level CountDocuments:", err)
 			return
 		}
 		if n > 0 {
 			return
 		}
-		_, err = collection.InsertMany(ctx, defaultJerarquiaRows())
+		_, err = collection.InsertMany(ctx, defaultLevelRows())
 		if err != nil {
-			log.Println("jerarquia InsertMany:", err)
+			log.Println("level InsertMany:", err)
 		}
 	})
 }
 
-/* GetJerarquiaMap returns nivel (lowercase) → jerarquia number */
-func GetJerarquiaMap() map[string]int {
-	EnsureJerarquiaSeeded()
+/* GetLevelMap devuelve nivel (minúsculas) → valor jerarquia numérico */
+func GetLevelMap() map[string]int {
+	EnsureLevelSeeded()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	db := config.MongoConnection.Database("san_martin")
-	collection := db.Collection(jerarquiaCollection)
+	collection := db.Collection(levelCollection)
 
 	cur, err := collection.Find(ctx, bson.M{})
 	if err != nil {
-		log.Println("jerarquia Find:", err)
+		log.Println("level Find:", err)
 		return map[string]int{}
 	}
 	defer cur.Close(ctx)
@@ -78,18 +78,18 @@ func GetJerarquiaMap() map[string]int {
 	return out
 }
 
-/* GetJerarquiasDB returns all hierarchy documents sorted by jerarquia then nivel */
-func GetJerarquiasDB() ([]*models.LevelHierarchy, bool) {
-	EnsureJerarquiaSeeded()
+/* GetLevelsDB devuelve todos los documentos de niveles ordenados por jerarquia y nivel */
+func GetLevelsDB() ([]*models.LevelHierarchy, bool) {
+	EnsureLevelSeeded()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	db := config.MongoConnection.Database("san_martin")
-	collection := db.Collection(jerarquiaCollection)
+	collection := db.Collection(levelCollection)
 
 	cur, err := collection.Find(ctx, bson.M{})
 	if err != nil {
-		log.Println("jerarquia Find:", err)
+		log.Println("level Find:", err)
 		return nil, false
 	}
 	defer cur.Close(ctx)
