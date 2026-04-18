@@ -1,0 +1,15 @@
+# Evita cambios “fantasma” CRLF vs LF entre Windows y el repo (Go/JS).
+* text=auto
+
+*.go text eol=lf
+*.mod text eol=lf
+*.sum text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

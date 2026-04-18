@@ -11,6 +11,11 @@
 # production
 /build
 
+# Go / build
+*.exe
+*.test
+*.out
+
 # misc
 .DS_Store
 .env
