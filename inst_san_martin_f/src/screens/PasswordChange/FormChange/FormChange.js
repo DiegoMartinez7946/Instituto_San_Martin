@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Button } from 'react-bootstrap';
+import { Form, Button, InputGroup } from 'react-bootstrap';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
 import FormEditLockBanner from '../../../components/FormEditLockBanner/FormEditLockBanner';
 import { useFormEditLock } from '../../../hooks/useFormEditLock';
@@ -7,6 +9,9 @@ import { isSaveSuccess } from '../../../utils/saveResult';
 
 const FormChange = ({ email, saveData }) => {
   const { readOnly, unlocked, setUnlocked, armLockAfterSave } = useFormEditLock('pwd-change', email);
+
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const [data, setData] = useState({
     email,
@@ -34,6 +39,8 @@ const FormChange = ({ email, saveData }) => {
         currentPassword: '',
         newPassword: ''
       });
+      setShowCurrentPassword(false);
+      setShowNewPassword(false);
       armLockAfterSave();
     }
   };
@@ -54,27 +61,55 @@ const FormChange = ({ email, saveData }) => {
 
       <Form.Group className="mb-3" controlId="formBasicPasswordCurrent">
         <Form.Label>Password Actual</Form.Label>
-        <Form.Control
-          autoFocus
-          type="text"
-          placeholder="Ingrese password actual"
-          name="currentPassword"
-          onChange={handleInputChange}
-          value={data.currentPassword}
-          readOnly={readOnly}
-        />
+        <InputGroup>
+          <Form.Control
+            autoFocus
+            type={showCurrentPassword ? 'text' : 'password'}
+            placeholder="Ingrese password actual"
+            name="currentPassword"
+            onChange={handleInputChange}
+            value={data.currentPassword}
+            readOnly={readOnly}
+            autoComplete="current-password"
+          />
+          <Button
+            variant="outline-secondary"
+            type="button"
+            title={showCurrentPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            aria-label={showCurrentPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            onClick={() => setShowCurrentPassword((v) => !v)}
+            tabIndex={-1}
+            disabled={readOnly}
+          >
+            <FontAwesomeIcon icon={showCurrentPassword ? faEyeSlash : faEye} />
+          </Button>
+        </InputGroup>
       </Form.Group>
 
       <Form.Group className="mb-3" controlId="formBasicPasswordNew">
         <Form.Label>Password Nueva</Form.Label>
-        <Form.Control
-          type="text"
-          placeholder="Ingrese nueva password"
-          name="newPassword"
-          onChange={handleInputChange}
-          value={data.newPassword}
-          readOnly={readOnly}
-        />
+        <InputGroup>
+          <Form.Control
+            type={showNewPassword ? 'text' : 'password'}
+            placeholder="Ingrese nueva password"
+            name="newPassword"
+            onChange={handleInputChange}
+            value={data.newPassword}
+            readOnly={readOnly}
+            autoComplete="new-password"
+          />
+          <Button
+            variant="outline-secondary"
+            type="button"
+            title={showNewPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            aria-label={showNewPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            onClick={() => setShowNewPassword((v) => !v)}
+            tabIndex={-1}
+            disabled={readOnly}
+          >
+            <FontAwesomeIcon icon={showNewPassword ? faEyeSlash : faEye} />
+          </Button>
+        </InputGroup>
       </Form.Group>
       <br />
       <Button variant="primary" type="submit" className="w-100" disabled={readOnly}>
